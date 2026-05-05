@@ -1,0 +1,45 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/chimera_allocator",
+    "crates/chimera_source",
+    "crates/chimera_diag",
+    "crates/chimera_cst",
+    "crates/chimera_ast_validate",
+    "crates/chimera_zig_abi",
+    "crates/chimera_fmt",
+    "crates/chimera_lsp",
+    "crates/chimera_oracle_tests",
+    "crates/chimera_compile",
+    "crates/chimera_typespec",
+    "crates/chimera_term",
+    "crates/chimera_term/fuzz",
+    "crates/chimera_lexer",
+    "crates/chimera_ast",
+    "crates/chimera_parser",
+    "crates/chimera_expand",
+    "crates/chimera_module",
+    "crates/chimera_target",
+    "crates/chimera_core",
+    "crates/chimera_plugin_api",
+    "crates/chimera_lint",
+    "crates/chimera_ast_transform",
+    "crates/chimera_plugins",
+    "crates/chimera_wasm",
+    "crates/chimera_stdlib",
+    "crates/chimera_cli",
+    "crates/chimera_build",
+    "crates/chimera_xref",
+]
+
+[workspace.dependencies]
+chimera_allocator = { path = "crates/chimera_allocator" }
+cap = "0.1.2"
+criterion = { version = "0.5" }
+
+[workspace.dev-dependencies]
+proptest = { version = "1.11.0" }
+
+[profile.release]
+opt-level = 3
+lto = true
