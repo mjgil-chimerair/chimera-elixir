@@ -1,0 +1,10 @@
+[package]
+name = "chimera_oracle_tests"
+version = "0.1.0"
+edition = "2021"
+description = "Test-only harness comparing outputs against official Elixir"
+publish = false
+
+[dependencies]
+[dev-dependencies]
+chimera_allocator = { workspace = true }
