@@ -1,0 +1,14 @@
+[package]
+name = "chimera_ast"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+chimera_diag = { version = "0.1.0", path = "../chimera_diag" }
+chimera_source = { path = "../chimera_source" }
+chimera_term = { path = "../chimera_term" }
+
+[dev-dependencies]
+proptest = "1.11.0"
+criterion = "0.5"
+chimera_allocator = { workspace = true }
