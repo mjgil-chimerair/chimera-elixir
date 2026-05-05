@@ -1,0 +1,14 @@
+[package]
+name = "chimera_typespec"
+version = "0.1.0"
+edition = "2021"
+description = "Typespec parsing and preservation for the Rust/Zig Elixir compiler"
+
+[dependencies]
+chimera_ast = { path = "../chimera_ast" }
+chimera_term = { path = "../chimera_term" }
+chimera_diag = { path = "../chimera_diag" }
+chimera_source = { path = "../chimera_source" }
+chimera_lexer = { path = "../chimera_lexer" }
+[dev-dependencies]
+chimera_allocator = { workspace = true }
