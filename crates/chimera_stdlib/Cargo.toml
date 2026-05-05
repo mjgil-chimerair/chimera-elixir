@@ -1,0 +1,12 @@
+[package]
+name = "chimera_stdlib"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+chimera_term = { path = "../chimera_term" }
+chimera_ast = { path = "../chimera_ast" }
+chimera_core = { path = "../chimera_core" }
+
+[dev-dependencies]
+chimera_allocator = { workspace = true }
