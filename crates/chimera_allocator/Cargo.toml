@@ -1,0 +1,10 @@
+[package]
+name = "chimera_allocator"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+cap = { workspace = true }
+
+[dev-dependencies]
+chimera_allocator = { workspace = true }
