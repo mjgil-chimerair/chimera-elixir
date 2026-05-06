@@ -1,0 +1,9 @@
+[package]
+name = "chimera_ast_transform"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+chimera_plugin_api = { path = "../chimera_plugin_api" }
+[dev-dependencies]
+chimera_allocator = { workspace = true }
