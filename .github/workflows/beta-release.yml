@@ -1,0 +1,151 @@
+name: Beta Release
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+
+env:
+  RUST_BACKTRACE: 1
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  beta-version:
+    name: Determine Beta Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version_calc.outputs.version }}
+      tag: ${{ steps.version_calc.outputs.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust
+        uses: dtolnay/rust-action@stable
+        with:
+          version: stable
+
+      - name: Install cargo-edit
+        run: cargo install cargo-edit
+
+      - name: Calculate beta version
+        id: version_calc
+        run: |
+          # Get current version from Cargo.toml
+          CURRENT_VERSION=$(grep -m1 '^version =' Cargo.toml | cut -d'"' -f2)
+          echo "Current version: $CURRENT_VERSION"
+          
+          # Parse version components
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+          
+          # For beta, we increment the patch and add -beta.N
+          # Find existing beta versions to determine N
+          BETA_COUNT=$(git tag --list "v${MAJOR}.${MINOR}.$((PATCH+1))-beta.*" | wc -l)
+          NEXT_BETA=$((BETA_COUNT + 1))
+          
+          BETA_VERSION="${MAJOR}.${MINOR}.$((PATCH + 1))-beta.${NEXT_BETA}"
+          
+          # Update Cargo.toml with beta version (temporarily for build)
+          cargo set-version $BETA_VERSION
+          
+          echo "version=$BETA_VERSION" >> $GITHUB_OUTPUT
+          echo "tag=v$BETA_VERSION" >> $GITHUB_OUTPUT
+
+  build-beta:
+    name: Build Beta Release
+    needs: beta-version
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.ref }}
+
+      - name: Install Rust
+        uses: dtolnay/rust-action@stable
+        with:
+          version: stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: target
+
+      - name: Get version
+        id: version
+        run: echo "VERSION=${{ needs.beta-version.outputs.version }}" >> $GITHUB_OUTPUT
+
+      - name: Build release
+        run: cargo build --release --all-targets
+
+      - name: Run tests
+        run: cargo test --release --all
+
+      - name: Create archive
+        run: |
+          mkdir -p release
+          cp target/release/rzx release/
+          cp target/release/rzx.exe release/ 2>/dev/null || true
+          tar -czf rzx-${{ steps.version.outputs.VERSION }}-x86_64-unknown-linux-gnu.tar.gz release/
+          ls -la *.tar.gz
+
+      - name: Create checksums
+        run: sha256sum *.tar.gz > checksums.txt
+
+      - name: Create GitHub Beta Release
+        if: github.event_name == 'push'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.beta-version.outputs.tag }}
+          name: Beta Release ${{ needs.beta-version.outputs.version }}
+          body: |
+            This is an automated beta release built from commit ${{ github.sha }}
+            
+            **Warning**: This is a pre-release version intended for testing purposes only.
+            
+            Assets:
+            - Binary distribution for Linux x86_64
+            - Checksums for verification
+          files: |
+            *.tar.gz
+            checksums.txt
+          draft: false
+          prerelease: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Cleanup job to revert version changes (runs on PRs)
+  cleanup:
+    name: Cleanup Version Changes
+    if: github.event_name == 'pull_request'
+    needs: beta-version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust
+        uses: dtolnay/rust-action@stable
+        with:
+          version: stable
+
+      - name: Revert version changes
+        run: |
+          # Get original version from Cargo.toml (before our changes)
+          ORIGINAL_VERSION=$(git show HEAD:Cargo.toml | grep -m1 '^version =' | cut -d'"' -f2)
+          echo "Reverting to original version: $ORIGINAL_VERSION"
+          cargo set-version $ORIGINAL_VERSION
+          
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add Cargo.toml
+          git commit -m "chore(release): revert version bump for PR ${{ github.event.number }}"
+          git push

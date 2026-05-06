@@ -1,0 +1,186 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  RUST_BACKTRACE: 1
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  test:
+    name: Test Suite
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        rust:
+          - stable
+          - beta
+          - nightly
+        exclude:
+          - rust: nightly  # Skip nightly for regular testing
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-action@stable
+        with:
+          version: ${{ matrix.rust }}
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: target
+
+      - name: Build
+        run: cargo build --release --all-targets
+
+      - name: Run tests
+        run: cargo test --release --all
+
+      - name: Run doc tests
+        run: cargo test --release --doc
+
+      - name: Run benchmarks
+        run: |
+          # Install criterion for benchmarking
+          rustup component add rust-src
+          # Run benchmarks and save results
+          cargo bench --bench codegen_bench --bench parse_bench --bench lex_bench --bench expand_bench --bench validation_bench --save-baseline ci-baseline
+        continue-on-error: true  # Don't fail the job if benchmarks fail to run
+
+  fuzz:
+    name: Fuzzing
+    runs-on: ubuntu-latest
+    # Only run on nightly for fuzzing
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository.full_name)
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust Nightly
+        uses: dtolnay/rust-action@stable
+        with:
+          version: nightly
+          components: rust-src
+
+      - name: Install cargo-fuzz
+        run: cargo install cargo-fuzz
+
+      - name: Run fuzzing for parser
+        run: |
+          timeout 30 cargo fuzz run fuzz_parser -- -max_len=100 || true
+        continue-on-error: true
+
+      - name: Run fuzzing for lexer
+        run: |
+          timeout 30 cargo fuzz run fuzz_lexer -- -max_len=100 || true
+        continue-on-error: true
+
+      - name: Run fuzzing for ETF encoding/decoding
+        run: |
+          timeout 30 cargo fuzz run fuzz_etf -- -max_len=100 || true
+        continue-on-error: true
+
+  fmt:
+    name: Rustfmt
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-action@stable
+        with:
+          version: stable
+
+      - name: Check formatting
+        run: |
+          rustup component add rustfmt
+          cargo fmt --all -- --check
+
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-action@stable
+        with:
+          version: stable
+
+      - name: Run clippy
+        run: |
+          rustup component add clippy
+          cargo clippy --all --all-targets -- -D warnings
+
+  test-ubuntu:
+    name: Test on Ubuntu
+    runs-on: ubuntu-latest
+    container: elixir:1.19.5-otp-26
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Erlang/OTP
+        run: apt-get update && apt-get install -y erlang
+
+      - name: Install Rust
+        uses: dtolnay/rust-action@stable
+        with:
+          version: stable
+
+      - name: Build and test
+        run: |
+          cargo build --release
+          cargo test --release
+
+  test-macos:
+    name: Test on macOS
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-action@stable
+        with:
+          version: stable
+
+      - name: Build
+        run: cargo build --release
+
+      - name: Run tests
+        run: cargo test --release
+
+  test-windows:
+    name: Test on Windows
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-action@stable
+        with:
+          version: stable
+
+      - name: Build
+        run: cargo build --release
+
+      - name: Run tests
+        run: cargo test --release
