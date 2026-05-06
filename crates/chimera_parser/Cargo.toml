@@ -1,0 +1,24 @@
+[package]
+name = "chimera_parser"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+chimera_source = { path = "../chimera_source" }
+chimera_term = { path = "../chimera_term" }
+chimera_ast = { path = "../chimera_ast" }
+chimera_lexer = { path = "../chimera_lexer" }
+
+[dev-dependencies]
+chimera_allocator = { workspace = true }
+
+[benchmarks]
+parse_bench = { harness = false }
+
+[dependencies.libfuzzer-sys]
+version = "0.4"
+optional = true
+
+[features]
+default = []
+fuzz = ["libfuzzer-sys"]
