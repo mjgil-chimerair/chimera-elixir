@@ -1,0 +1,20 @@
+[package]
+name = "chimera_lexer_fuzz"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+chimera_lexer = { path = ".." }
+chimera_source = { path = "../rzx_source" }
+libfuzzer-sys = "0.4"
+
+[package.metadata]
+cargo-fuzz = true
+
+[profile.release]
+strip = true
+lto = true
+
+[[bin]]
+name = "fuzz_lexer"
+path = "fuzz_lexer.rs"

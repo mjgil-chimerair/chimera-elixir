@@ -1,0 +1,14 @@
+[package]
+name = "chimera_lexer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+chimera_source = { path = "../chimera_source" }
+
+[dev-dependencies]
+cargo-fuzz = "0.13.1"
+chimera_allocator = { workspace = true }
+
+[benchmarks]
+lex_bench = { harness = false }
