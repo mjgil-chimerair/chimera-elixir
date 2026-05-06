@@ -1,0 +1,21 @@
+[package]
+name = "chimera_term_fuzz"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+chimera_term = { path = ".." }
+chimera_allocator = { workspace = true }
+libfuzzer-sys = "0.4"
+num-bigint = { version = "0.4" }
+
+[package.metadata]
+cargo-fuzz = true
+
+[profile.release]
+strip = true
+lto = true
+
+[[bin]]
+name = "fuzz_etf"
+path = "fuzz_etf.rs"

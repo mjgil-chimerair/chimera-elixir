@@ -1,0 +1,15 @@
+[package]
+name = "chimera_term"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+num-bigint = "0.4"
+num-traits = "0.2"
+
+[dev-dependencies]
+chimera_allocator = { workspace = true }
+criterion = { workspace = true }
+
+[benchmarks]
+term_bench = { harness = false }
