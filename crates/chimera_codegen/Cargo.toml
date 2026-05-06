@@ -1,0 +1,18 @@
+[package]
+name = "chimera_codegen"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+chimera_core = { path = "../chimera_core" }
+chimera_source = { path = "../chimera_source" }
+chimera_term = { path = "../chimera_term" }
+chimera_ast = { path = "../chimera_ast" }
+
+[dev-dependencies]
+criterion = { workspace = true }
+chimera_allocator = { workspace = true }
+chimera_beam_term = { path = "../../../chimera-beam/crates/chimera_beam_term" }
+
+[benchmarks]
+codegen_bench = { harness = true }
