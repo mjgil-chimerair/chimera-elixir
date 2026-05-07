@@ -1,0 +1,23 @@
+# Special forms fixtures
+if true do
+  :ok
+else
+  :error
+end
+
+case x do
+  1 -> :one
+  2 -> :two
+end
+
+receive do
+  :foo -> :bar
+after
+  1000 -> :timeout
+end
+
+try do
+  raise "error"
+rescue
+  e -> e.message
+end
