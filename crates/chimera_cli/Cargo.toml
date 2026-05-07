@@ -1,0 +1,26 @@
+[package]
+name = "chimera_cli"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "rzx"
+path = "src/main.rs"
+
+[dependencies]
+chimera_term = { path = "../chimera_term" }
+chimera_source = { path = "../chimera_source" }
+chimera_lexer = { path = "../chimera_lexer" }
+chimera_ast = { path = "../chimera_ast" }
+chimera_parser = { path = "../chimera_parser" }
+chimera_expand = { path = "../chimera_expand" }
+chimera_module = { path = "../chimera_module" }
+chimera_core = { path = "../chimera_core" }
+chimera_codegen = { path = "../chimera_codegen" }
+chimera_target = { path = "../chimera_target" }
+chimera_stdlib = { path = "../chimera_stdlib" }
+anyhow = "1.0"
+clap = { version = "4.0", features = ["derive"] }
+
+[dev-dependencies]
+chimera_allocator = { workspace = true }
