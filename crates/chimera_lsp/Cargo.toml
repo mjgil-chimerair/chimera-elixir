@@ -1,0 +1,15 @@
+[package]
+name = "chimera_lsp"
+version = "0.1.0"
+edition = "2021"
+description = "Language Server Protocol implementation for the Rust/Zig Elixir compiler"
+
+[dependencies]
+chimera_source = { path = "../chimera_source" }
+chimera_diag = { path = "../chimera_diag" }
+chimera_parser = { path = "../chimera_parser" }
+chimera_ast = { path = "../chimera_ast" }
+chimera_lexer = { path = "../chimera_lexer" }
+serde = { version = "1.0", features = ["derive"] }
+[dev-dependencies]
+chimera_allocator = { workspace = true }
