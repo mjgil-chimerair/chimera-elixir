@@ -1,0 +1,14 @@
+# CRLF line endings
+line1\r\n
+line2\r\n
+line3
+
+# Mixed line endings
+line1\r\n
+line2\n
+line3\r\n
+
+# Empty lines
+\r\n
+\r\n
+text

@@ -1,0 +1,19 @@
+# Integer tokens
+0
+1
+42
+123
+999999
+0xFF
+0xDEADBEEF
+0b1010
+0o777
+
+# Float tokens
+0.0
+1.0
+3.14
+99.99
+1.0e10
+1.0e-10
+1.234e5

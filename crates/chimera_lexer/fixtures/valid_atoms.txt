@@ -1,0 +1,12 @@
+# Atom tokens
+:foo
+:bar
+:baz
+:_
+:_underscore
+:foo_bar
+:FooBar
+:FOO_BAR
+:true
+:false
+:nil

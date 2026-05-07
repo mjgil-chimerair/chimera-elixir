@@ -1,0 +1,13 @@
+# Valid identifier tokens
+foo
+bar
+baz
+_underscore
+camelCase
+snake_case
+UPPERCASE
+WithNumbers123
+end
+fn
+do
+case

@@ -1,0 +1,9 @@
+# String tokens
+"hello"
+"world"
+""
+"with spaces"
+"with\nescape"
+"with\"quote"
+'single quotes'
+'also valid'
