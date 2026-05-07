@@ -1,0 +1,17 @@
+[package]
+name = "chimera_zig_abi"
+version = "0.1.0"
+edition = "2021"
+description = "Safe Rust wrappers around Zig kernels for the Rust/Zig Elixir compiler"
+
+build = "build.rs"  # Build script for compiling Zig kernels
+
+[features]
+default = []  # Default: no FFI, use Rust std implementations
+ffi = []  # Enable FFI declarations (requires librzx_kernels at link time)
+
+[dependencies]
+chimera_source = { path = "../chimera_source" }
+libc = "0.2"
+[dev-dependencies]
+chimera_allocator = { workspace = true }
