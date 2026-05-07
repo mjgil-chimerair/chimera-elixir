@@ -1,0 +1,18 @@
+[package]
+name = "chimera_compile"
+version = "0.1.0"
+edition = "2021"
+description = "Compiler driver pipeline for the Rust/Zig Elixir compiler"
+
+[dependencies]
+chimera_source = { path = "../chimera_source" }
+chimera_diag = { path = "../chimera_diag" }
+chimera_lexer = { path = "../chimera_lexer" }
+chimera_parser = { path = "../chimera_parser" }
+chimera_cst = { path = "../chimera_cst" }
+chimera_ast = { path = "../chimera_ast" }
+chimera_term = { path = "../chimera_term" }
+chimera_ast_validate = { path = "../chimera_ast_validate" }
+chimera_expand = { path = "../chimera_expand" }
+[dev-dependencies]
+chimera_allocator = { workspace = true }
