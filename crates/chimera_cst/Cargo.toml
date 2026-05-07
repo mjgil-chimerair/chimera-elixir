@@ -1,0 +1,11 @@
+[package]
+name = "chimera_cst"
+version = "0.1.0"
+edition = "2021"
+description = "Lossless Concrete Syntax Tree for the Rust/Zig Elixir compiler"
+
+[dependencies]
+chimera_source = { path = "../chimera_source" }
+chimera_lexer = { path = "../chimera_lexer" }
+[dev-dependencies]
+chimera_allocator = { workspace = true }
