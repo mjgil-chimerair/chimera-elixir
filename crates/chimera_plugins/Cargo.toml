@@ -1,0 +1,11 @@
+[package]
+name = "chimera_plugins"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+chimera_plugin_api = { path = "../chimera_plugin_api" }
+chimera_lint = { path = "../chimera_lint" }
+chimera_ast_transform = { path = "../chimera_ast_transform" }
+[dev-dependencies]
+chimera_allocator = { workspace = true }
