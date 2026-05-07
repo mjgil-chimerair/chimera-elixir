@@ -1,0 +1,9 @@
+[package]
+name = "chimera_build"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+
+[dev-dependencies]
+chimera_allocator = { workspace = true }
