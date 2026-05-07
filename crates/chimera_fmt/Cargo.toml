@@ -1,0 +1,11 @@
+[package]
+name = "chimera_fmt"
+version = "0.1.0"
+edition = "2021"
+description = "Formatter for the Rust/Zig Elixir compiler using lossless CST"
+
+[dependencies]
+chimera_cst = { path = "../chimera_cst" }
+chimera_source = { path = "../chimera_source" }
+[dev-dependencies]
+chimera_allocator = { workspace = true }
