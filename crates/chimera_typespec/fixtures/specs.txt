@@ -1,0 +1,7 @@
+# @spec typespec fixtures
+@spec add(integer(), integer()) :: integer()
+@spec greet(String.t()) :: String.t()
+@spec identity(a) :: a when a: var()
+@spec zero?([integer()]) :: boolean()
+@spec returns_map(%{key: atom(), value: any()}) :: %{key: atom(), value: any()}
+@spec with_guard(x, y) :: x when x: number(), y: number()
