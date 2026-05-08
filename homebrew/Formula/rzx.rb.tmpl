@@ -1,0 +1,20 @@
+class Rzx < Formula
+  desc "Rust/Zig Elixir compiler frontend"
+  homepage "https://github.com/mjgil/rustzigelixir"
+  url "https://github.com/mjgil/rustzigelixir.git"
+  version "${VERSION}"
+  sha256 ""
+
+  head "https://github.com/mjgil/rustzigelixir.git", branch: "main"
+
+  depends_on "rust" => :build
+
+  def install
+    system "cargo", "build", "--release", "--bin", "rzx"
+    bin.install "target/release/rzx"
+  end
+
+  test do
+    system "#{bin}/rzx", "--version"
+  end
+end
