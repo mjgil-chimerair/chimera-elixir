@@ -1,0 +1,13 @@
+# Struct fixtures
+defmodule User do
+  defstruct name: "John", age: 30
+end
+
+%User{}
+
+%User{name: "Jane"}
+
+# Exception struct
+defmodule MyError do
+  defstruct message: "error"
+end
