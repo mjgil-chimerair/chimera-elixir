@@ -1,0 +1,14 @@
+(library
+ (name macro_formalization)
+ (public_name chimera_semantics.macro_formalization)
+ (modules macro_formalization))
+
+(library
+ (name pattern_analysis)
+ (public_name chimera_semantics.pattern_analysis)
+ (modules pattern_analysis))
+
+(library
+ (name type_system)
+ (public_name chimera_semantics.type_system)
+ (modules type_system))

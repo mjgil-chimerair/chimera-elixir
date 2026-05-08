@@ -1,0 +1,14 @@
+(lang dune 3.8)
+name chimera_semantics
+(version 0.1.0)
+(generate_opam_files true)
+(license MIT)
+(authors "Chimera Elixir Team")
+(maintainers "team@chimera-elixir.dev")
+(generate_manpages true)
+(project_name chimera_semantics)
+
+(package
+ (name chimera_semantics)
+ (synopsis "Semantic prototypes for Chimera Elixir")
+ (description "OCaml prototypes for macro formalization, pattern analysis, and type-system prototyping"))
