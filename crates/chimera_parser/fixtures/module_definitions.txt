@@ -1,0 +1,20 @@
+# Module definition fixtures
+defmodule Foo do
+end
+
+defmodule Bar do
+  def foo do
+    :ok
+  end
+end
+
+defmodule Baz do
+  def foo, do: :ok
+  def bar, do: :error
+end
+
+defmodule Qux do
+  defp private_func do
+    :private
+  end
+end
