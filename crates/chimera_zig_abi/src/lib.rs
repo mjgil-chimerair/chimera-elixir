@@ -144,9 +144,22 @@ mod ffi_declarations {
     extern "C" {
         pub fn chimera_utf8_validate(data: *const u8, len: usize) -> usize;
         pub fn chimera_utf8_is_valid(data: *const u8, len: usize) -> u32;
-        pub fn chimera_scan_identifier(data: *const u8, len: usize, start: usize, end: usize) -> super::AbiScanResult;
-        pub fn chimera_scan_alias(data: *const u8, len: usize, start: usize) -> super::AbiScanResult;
-        pub fn chimera_offset_to_line_col(data: *const u8, len: usize, offset: usize) -> super::AbiLineColResult;
+        pub fn chimera_scan_identifier(
+            data: *const u8,
+            len: usize,
+            start: usize,
+            end: usize,
+        ) -> super::AbiScanResult;
+        pub fn chimera_scan_alias(
+            data: *const u8,
+            len: usize,
+            start: usize,
+        ) -> super::AbiScanResult;
+        pub fn chimera_offset_to_line_col(
+            data: *const u8,
+            len: usize,
+            offset: usize,
+        ) -> super::AbiLineColResult;
     }
 }
 
@@ -474,7 +487,21 @@ impl<'a> SourceScanner<'a> {
 
 /// Validate bitstring segment options.
 pub fn validate_bitstring_opts(opts: &str) -> Result<(), KernelError> {
-    let valid_opts = ["binary", "bits", "bytes", "size", "unit", "big", "little", "native", "signed", "unsigned", "big-endian", "little-endian", "unsigned"];
+    let valid_opts = [
+        "binary",
+        "bits",
+        "bytes",
+        "size",
+        "unit",
+        "big",
+        "little",
+        "native",
+        "signed",
+        "unsigned",
+        "big-endian",
+        "little-endian",
+        "unsigned",
+    ];
     for opt in opts.split(',') {
         let opt = opt.trim();
         if !opt.is_empty() && !valid_opts.contains(&opt) {
@@ -505,7 +532,9 @@ impl KernelBuffer {
     }
 
     pub fn with_capacity(capacity: usize) -> Self {
-        KernelBuffer { data: Vec::with_capacity(capacity) }
+        KernelBuffer {
+            data: Vec::with_capacity(capacity),
+        }
     }
 
     pub fn push(&mut self, byte: u8) {
@@ -582,8 +611,14 @@ mod tests {
         assert_eq!(KernelError::from_u32(2), Some(KernelError::InvalidOffset));
         assert_eq!(KernelError::from_u32(3), Some(KernelError::BufferTooSmall));
         assert_eq!(KernelError::from_u32(4), Some(KernelError::InvalidEscape));
-        assert_eq!(KernelError::from_u32(5), Some(KernelError::UnterminatedString));
-        assert_eq!(KernelError::from_u32(6), Some(KernelError::InvalidCharacter));
+        assert_eq!(
+            KernelError::from_u32(5),
+            Some(KernelError::UnterminatedString)
+        );
+        assert_eq!(
+            KernelError::from_u32(6),
+            Some(KernelError::InvalidCharacter)
+        );
         assert_eq!(KernelError::from_u32(99), None);
     }
 
@@ -686,7 +721,7 @@ mod tests {
     fn test_validate_utf8_invalid() {
         // Test that invalid bytes are rejected - use runtime construction
         fn make_invalid_bytes() -> Vec<u8> {
-            vec![0xED, 0xA0, 0x80]  // Lone surrogate in UTF-8
+            vec![0xED, 0xA0, 0x80] // Lone surrogate in UTF-8
         }
         let invalid_bytes = make_invalid_bytes();
         assert!(std::str::from_utf8(&invalid_bytes).is_err());

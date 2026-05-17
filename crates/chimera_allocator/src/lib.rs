@@ -100,7 +100,7 @@ impl BumpArena {
     where
         T: Clone + Sized,
     {
-        let size = std::mem::size_of::<T>() * values.len();
+        let size = std::mem::size_of_val(values);
         let align = std::mem::align_of::<T>();
         let ptr = self.alloc(size, align).unwrap();
         std::ptr::copy_nonoverlapping(values.as_ptr(), ptr as *mut T, values.len());
@@ -170,6 +170,9 @@ impl ThreadLocalArena {
     }
 
     /// Allocate and write a value.
+    ///
+    /// # Safety
+    /// Same as `BumpArena::alloc_value`.
     pub unsafe fn alloc_value<T>(&mut self, value: T) -> &mut T {
         self.arena.alloc_value(value)
     }

@@ -228,7 +228,11 @@ impl SourceMap {
         SourceMap { files: Vec::new() }
     }
 
-    pub fn add_file(&mut self, path: impl Into<Arc<str>>, content: impl Into<Arc<str>>) -> SourceFileId {
+    pub fn add_file(
+        &mut self,
+        path: impl Into<Arc<str>>,
+        content: impl Into<Arc<str>>,
+    ) -> SourceFileId {
         let id = SourceFileId(self.files.len() as u32);
         let file = SourceFile::new(id, path, content);
         self.files.push(Arc::new(file));
@@ -246,7 +250,12 @@ impl SourceMap {
     }
 
     /// Get source context around an offset for debugging.
-    pub fn get_context(&self, file_id: SourceFileId, offset: SourceOffset, context_lines: usize) -> Option<DebugContext> {
+    pub fn get_context(
+        &self,
+        file_id: SourceFileId,
+        offset: SourceOffset,
+        context_lines: usize,
+    ) -> Option<DebugContext> {
         let file = self.get_file(file_id)?;
         let (line, col) = self.offset_to_line_col(file_id, offset)?;
 
@@ -274,7 +283,11 @@ impl SourceMap {
     }
 
     /// Convert offset to line and column.
-    pub fn offset_to_line_col(&self, file_id: SourceFileId, offset: SourceOffset) -> Option<(LineNumber, ColumnOffset)> {
+    pub fn offset_to_line_col(
+        &self,
+        file_id: SourceFileId,
+        offset: SourceOffset,
+    ) -> Option<(LineNumber, ColumnOffset)> {
         let file = self.get_file(file_id)?;
         let (line, col) = offset.line_column(&file.content);
         Some((line, col))
@@ -357,7 +370,7 @@ mod tests {
     #[test]
     fn test_source_offset_utf8() {
         // UTF-8 multi-byte character handling
-        let content = "αβγ\nline2";  // Greek letters - 2 bytes each
+        let content = "αβγ\nline2"; // Greek letters - 2 bytes each
         let file = SourceFile::new(SourceFileId::new(0), "test.ex", content);
         // α is at offset 0, β at offset 2, γ at offset 4, \n at offset 6
         assert_eq!(file.line_offsets.len(), 2);
@@ -577,9 +590,21 @@ mod tests {
             line: LineNumber::new(2),
             column: ColumnOffset::new(0),
             lines: vec![
-                DebugLine { number: 1, text: "line1".to_string(), is_target: false },
-                DebugLine { number: 2, text: "line2".to_string(), is_target: false },
-                DebugLine { number: 3, text: "line3".to_string(), is_target: true },
+                DebugLine {
+                    number: 1,
+                    text: "line1".to_string(),
+                    is_target: false,
+                },
+                DebugLine {
+                    number: 2,
+                    text: "line2".to_string(),
+                    is_target: false,
+                },
+                DebugLine {
+                    number: 3,
+                    text: "line3".to_string(),
+                    is_target: true,
+                },
             ],
         };
         assert_eq!(ctx.lines.len(), 3);

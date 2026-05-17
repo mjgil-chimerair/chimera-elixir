@@ -6,8 +6,8 @@
 #[cfg(test)]
 use chimera_allocator as _;
 
-use std::collections::HashMap;
 use chimera_plugin_api::Severity;
+use std::collections::HashMap;
 
 /// A single lint rule with its configuration and metadata.
 pub struct LintRule {
@@ -64,7 +64,12 @@ pub struct RuleMetadata {
 }
 
 impl RuleMetadata {
-    pub fn new(id: impl Into<String>, name: impl Into<String>, description: impl Into<String>, category: RuleCategory) -> Self {
+    pub fn new(
+        id: impl Into<String>,
+        name: impl Into<String>,
+        description: impl Into<String>,
+        category: RuleCategory,
+    ) -> Self {
         Self {
             id: id.into(),
             name: name.into(),
@@ -155,7 +160,11 @@ impl LintInput {
             return None;
         }
         let start = self.line_offsets[line - 1];
-        let end = self.line_offsets.get(line).copied().unwrap_or(self.source.len());
+        let end = self
+            .line_offsets
+            .get(line)
+            .copied()
+            .unwrap_or(self.source.len());
         Some(&self.source[start..end].trim_end_matches('\n'))
     }
 
@@ -230,7 +239,11 @@ pub enum CstKind {
 
 impl CstNode {
     pub fn new(kind: CstKind, start_offset: u32, end_offset: u32) -> Self {
-        Self { kind, start_offset, end_offset }
+        Self {
+            kind,
+            start_offset,
+            end_offset,
+        }
     }
 
     pub fn kind(&self) -> CstKind {
@@ -375,7 +388,11 @@ impl LintRegistry {
 
     /// Get all enabled rules.
     pub fn get_enabled(&self) -> Vec<&LintRule> {
-        self.rules.values().filter(|r| r.enabled).map(|r| r.as_ref()).collect()
+        self.rules
+            .values()
+            .filter(|r| r.enabled)
+            .map(|r| r.as_ref())
+            .collect()
     }
 
     /// Get all rule IDs.
@@ -446,7 +463,13 @@ impl LintConfig {
     }
 
     pub fn with_rule(mut self, rule_id: impl Into<String>, severity: Severity) -> Self {
-        self.rules.insert(rule_id.into(), RuleConfig { severity: Some(severity), enabled: true });
+        self.rules.insert(
+            rule_id.into(),
+            RuleConfig {
+                severity: Some(severity),
+                enabled: true,
+            },
+        );
         self
     }
 
@@ -533,7 +556,12 @@ impl Linter {
                             "RZ002",
                             Severity::Info,
                             "Tab character detected",
-                            LintLocation::new(input.source_id, input.get_column(offset)?, 0, offset),
+                            LintLocation::new(
+                                input.source_id,
+                                input.get_column(offset)?,
+                                0,
+                                offset,
+                            ),
                         ))
                     })
                     .collect()
@@ -584,13 +612,21 @@ impl Linter {
                 for (offset, _) in input.source.bytes().enumerate() {
                     if let Some(line) = input.get_line(input.get_column(offset).unwrap_or(1)) {
                         let line_upper = line.to_uppercase();
-                        if line_upper.contains("TODO") || line_upper.contains("FIXME") || line_upper.contains("XXX") {
+                        if line_upper.contains("TODO")
+                            || line_upper.contains("FIXME")
+                            || line_upper.contains("XXX")
+                        {
                             if let Some(col) = line.find(|c: char| !c.is_whitespace()) {
                                 findings.push(LintFinding::new(
                                     "RZ004",
                                     Severity::Warning,
                                     format!("Incomplete code marker found: {}", line.trim()),
-                                    LintLocation::new(input.source_id, input.get_column(offset).unwrap_or(1), col, offset),
+                                    LintLocation::new(
+                                        input.source_id,
+                                        input.get_column(offset).unwrap_or(1),
+                                        col,
+                                        offset,
+                                    ),
                                 ));
                             }
                         }
@@ -656,7 +692,12 @@ impl Linter {
                             "RZ006",
                             Severity::Warning,
                             "Empty body detected - this may be unintentional",
-                            LintLocation::new(input.source_id, input.get_column(abs_pos).unwrap_or(1), 0, abs_pos),
+                            LintLocation::new(
+                                input.source_id,
+                                input.get_column(abs_pos).unwrap_or(1),
+                                0,
+                                abs_pos,
+                            ),
                         ));
                         search_start = abs_pos + 1;
                     }
@@ -680,20 +721,39 @@ impl Linter {
                 let bytes = input.source.as_bytes();
 
                 for (i, &byte) in bytes.iter().enumerate() {
-                    if byte == b'"' && (i == 0 || bytes[i-1] != b'\\') {
+                    if byte == b'"' && (i == 0 || bytes[i - 1] != b'\\') {
                         in_string = !in_string;
                     }
 
                     if in_string && byte == b'\\' && i + 1 < bytes.len() {
                         let next = bytes[i + 1];
                         // Valid escapes: \n, \t, \r, \\, \", \', \s, \b, \f, \e, \v, \0, \x
-                        let valid = matches!(next, b'n' | b't' | b'r' | b'\\' | b'"' | b'\'' | b's' | b'b' | b'f' | b'e' | b'v' | b'0' | b'x');
+                        let valid = matches!(
+                            next,
+                            b'n' | b't'
+                                | b'r'
+                                | b'\\'
+                                | b'"'
+                                | b'\''
+                                | b's'
+                                | b'b'
+                                | b'f'
+                                | b'e'
+                                | b'v'
+                                | b'0'
+                                | b'x'
+                        );
                         if !valid && !next.is_ascii_digit() {
                             findings.push(LintFinding::new(
                                 "RZ007",
                                 Severity::Warning,
                                 format!("Invalid escape sequence: \\{}", next as char),
-                                LintLocation::new(input.source_id, input.get_column(i).unwrap_or(1), 0, i),
+                                LintLocation::new(
+                                    input.source_id,
+                                    input.get_column(i).unwrap_or(1),
+                                    0,
+                                    i,
+                                ),
                             ));
                         }
                     }
@@ -721,7 +781,12 @@ impl Linter {
                         "RZ008",
                         Severity::Hint,
                         "File should end with a trailing newline",
-                        LintLocation::new(input.source_id, input.line_offsets.len(), 0, input.source.len()),
+                        LintLocation::new(
+                            input.source_id,
+                            input.line_offsets.len(),
+                            0,
+                            input.source.len(),
+                        ),
                     )]
                 } else {
                     Vec::new()
@@ -752,7 +817,11 @@ impl Linter {
         self.registry.run(input)
     }
 
-    pub fn run_with_severity_filter(&self, input: &LintInput, min_severity: Severity) -> Vec<LintFinding> {
+    pub fn run_with_severity_filter(
+        &self,
+        input: &LintInput,
+        min_severity: Severity,
+    ) -> Vec<LintFinding> {
         self.run(input)
             .into_iter()
             .filter(|f| f.severity >= min_severity)
@@ -760,7 +829,10 @@ impl Linter {
     }
 
     /// Convert lint findings to diagnostic set for rendering.
-    pub fn findings_to_diagnostics(&self, findings: Vec<LintFinding>) -> chimera_diag::DiagnosticSet {
+    pub fn findings_to_diagnostics(
+        &self,
+        findings: Vec<LintFinding>,
+    ) -> chimera_diag::DiagnosticSet {
         use chimera_diag::{Diagnostic, Severity as DiagSeverity};
 
         let mut diag_set = chimera_diag::DiagnosticSet::new();
@@ -774,14 +846,15 @@ impl Linter {
                 Severity::Critical => DiagSeverity::Error,
             };
 
-            let mut diag = Diagnostic::error(finding.message.clone())
-                .with_severity(severity);
+            let mut diag = Diagnostic::error(finding.message.clone()).with_severity(severity);
 
             // Add location as primary label
             diag = diag.with_label(
                 chimera_source::SourceSpan::new(
                     chimera_source::SourceOffset::new(finding.location.offset as u32),
-                    chimera_source::SourceOffset::new((finding.location.offset + finding.location.length) as u32),
+                    chimera_source::SourceOffset::new(
+                        (finding.location.offset + finding.location.length) as u32,
+                    ),
                 ),
                 format!("{} ({:?})", finding.rule_id, finding.location),
             );
@@ -850,9 +923,14 @@ mod tests {
 
     #[test]
     fn test_lint_finding_with_note_and_hint() {
-        let finding = LintFinding::new("RZ001", Severity::Warning, "Test", LintLocation::new(1, 1, 0, 0))
-            .with_note("This is a note")
-            .with_hint("This is a hint");
+        let finding = LintFinding::new(
+            "RZ001",
+            Severity::Warning,
+            "Test",
+            LintLocation::new(1, 1, 0, 0),
+        )
+        .with_note("This is a note")
+        .with_hint("This is a hint");
         assert!(finding.note.is_some());
         assert!(finding.hint.is_some());
     }
@@ -925,7 +1003,10 @@ mod tests {
         let linter = Linter::default();
         let input = LintInput::new(1, "test.ex", r#" "hello\q" "#);
         let findings = linter.run(&input);
-        let escape_findings: Vec<_> = findings.into_iter().filter(|f| f.rule_id == "RZ007").collect();
+        let escape_findings: Vec<_> = findings
+            .into_iter()
+            .filter(|f| f.rule_id == "RZ007")
+            .collect();
         assert!(!escape_findings.is_empty());
     }
 
@@ -947,9 +1028,14 @@ mod tests {
 
     #[test]
     fn test_lint_finding_note_hint() {
-        let finding = LintFinding::new("RZ001", Severity::Warning, "Test", LintLocation::new(1, 1, 0, 0))
-            .with_note("This is a note")
-            .with_hint("This is a hint");
+        let finding = LintFinding::new(
+            "RZ001",
+            Severity::Warning,
+            "Test",
+            LintLocation::new(1, 1, 0, 0),
+        )
+        .with_note("This is a note")
+        .with_hint("This is a hint");
         assert_eq!(finding.note.as_deref(), Some("This is a note"));
         assert_eq!(finding.hint.as_deref(), Some("This is a hint"));
     }
@@ -957,16 +1043,14 @@ mod tests {
     #[test]
     fn test_findings_to_diagnostics() {
         let linter = Linter::default();
-        let findings = vec![
-            LintFinding::new(
-                "RZ001",
-                Severity::Warning,
-                "Trailing whitespace",
-                LintLocation::new(1, 1, 10, 10),
-            )
-            .with_note("This is a note")
-            .with_hint("Remove the trailing whitespace"),
-        ];
+        let findings = vec![LintFinding::new(
+            "RZ001",
+            Severity::Warning,
+            "Trailing whitespace",
+            LintLocation::new(1, 1, 10, 10),
+        )
+        .with_note("This is a note")
+        .with_hint("Remove the trailing whitespace")];
 
         let diags = linter.findings_to_diagnostics(findings);
         assert!(diags.has_errors() || diags.warning_count() > 0);
@@ -975,9 +1059,33 @@ mod tests {
     #[test]
     fn test_lint_input_get_nodes_by_kind() {
         let nodes = vec![
-            LintNode { kind: "Module".into(), content: "defmodule".into(), line: 1, column: 0, offset: 0, children: vec![], parent: None },
-            LintNode { kind: "Function".into(), content: "foo".into(), line: 1, column: 10, offset: 10, children: vec![], parent: None },
-            LintNode { kind: "Module".into(), content: "defmodule2".into(), line: 2, column: 0, offset: 20, children: vec![], parent: None },
+            LintNode {
+                kind: "Module".into(),
+                content: "defmodule".into(),
+                line: 1,
+                column: 0,
+                offset: 0,
+                children: vec![],
+                parent: None,
+            },
+            LintNode {
+                kind: "Function".into(),
+                content: "foo".into(),
+                line: 1,
+                column: 10,
+                offset: 10,
+                children: vec![],
+                parent: None,
+            },
+            LintNode {
+                kind: "Module".into(),
+                content: "defmodule2".into(),
+                line: 2,
+                column: 0,
+                offset: 20,
+                children: vec![],
+                parent: None,
+            },
         ];
         let input = LintInput::new(1, "test.ex", "defmodule Foo do end\ndefmodule Bar do end")
             .with_ast_nodes(nodes);
@@ -1000,8 +1108,24 @@ mod tests {
     fn test_lint_ast_add_child() {
         let mut ast = LintAst {
             nodes: vec![
-                LintNode { kind: "Module".into(), content: "defmodule".into(), line: 1, column: 0, offset: 0, children: vec![], parent: None },
-                LintNode { kind: "Expression".into(), content: "foo".into(), line: 1, column: 10, offset: 10, children: vec![], parent: None },
+                LintNode {
+                    kind: "Module".into(),
+                    content: "defmodule".into(),
+                    line: 1,
+                    column: 0,
+                    offset: 0,
+                    children: vec![],
+                    parent: None,
+                },
+                LintNode {
+                    kind: "Expression".into(),
+                    content: "foo".into(),
+                    line: 1,
+                    column: 10,
+                    offset: 10,
+                    children: vec![],
+                    parent: None,
+                },
             ],
         };
         ast.add_child(0, 1);
@@ -1013,9 +1137,33 @@ mod tests {
     fn test_lint_ast_find_descendants() {
         let ast = LintAst {
             nodes: vec![
-                LintNode { kind: "Module".into(), content: "defmodule".into(), line: 1, column: 0, offset: 0, children: vec![1, 2], parent: None },
-                LintNode { kind: "Function".into(), content: "foo".into(), line: 1, column: 10, offset: 10, children: vec![], parent: Some(0) },
-                LintNode { kind: "Function".into(), content: "bar".into(), line: 2, column: 10, offset: 30, children: vec![], parent: Some(0) },
+                LintNode {
+                    kind: "Module".into(),
+                    content: "defmodule".into(),
+                    line: 1,
+                    column: 0,
+                    offset: 0,
+                    children: vec![1, 2],
+                    parent: None,
+                },
+                LintNode {
+                    kind: "Function".into(),
+                    content: "foo".into(),
+                    line: 1,
+                    column: 10,
+                    offset: 10,
+                    children: vec![],
+                    parent: Some(0),
+                },
+                LintNode {
+                    kind: "Function".into(),
+                    content: "bar".into(),
+                    line: 2,
+                    column: 10,
+                    offset: 30,
+                    children: vec![],
+                    parent: Some(0),
+                },
             ],
         };
 
@@ -1034,11 +1182,16 @@ mod tests {
 
     #[test]
     fn test_lint_input_with_ast_nodes() {
-        let nodes = vec![
-            LintNode { kind: "Module".into(), content: "defmodule".into(), line: 1, column: 0, offset: 0, children: vec![], parent: None },
-        ];
-        let input = LintInput::new(1, "test.ex", "defmodule Foo do end")
-            .with_ast_nodes(nodes);
+        let nodes = vec![LintNode {
+            kind: "Module".into(),
+            content: "defmodule".into(),
+            line: 1,
+            column: 0,
+            offset: 0,
+            children: vec![],
+            parent: None,
+        }];
+        let input = LintInput::new(1, "test.ex", "defmodule Foo do end").with_ast_nodes(nodes);
 
         assert!(input.root_node().is_some());
         assert_eq!(input.get_nodes_by_kind("Module").len(), 1);

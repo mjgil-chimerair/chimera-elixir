@@ -230,7 +230,9 @@ impl BuildGraph {
         visited.insert(name.to_string(), false);
 
         // Get dependencies first, then recurse
-        let deps: Vec<String> = self.tasks.get(name)
+        let deps: Vec<String> = self
+            .tasks
+            .get(name)
             .map(|task| task.deps.clone())
             .unwrap_or_default();
 
@@ -354,11 +356,14 @@ impl DepResolver {
         let mut lockfile = HashMap::new();
         for dep in deps {
             if let Some(resolved) = self.resolve_single(dep) {
-                lockfile.insert(dep.package.clone(), LockedDep {
-                    package: dep.package.clone(),
-                    version: resolved.version,
-                    source: resolved.source,
-                });
+                lockfile.insert(
+                    dep.package.clone(),
+                    LockedDep {
+                        package: dep.package.clone(),
+                        version: resolved.version,
+                        source: resolved.source,
+                    },
+                );
             }
         }
         lockfile
@@ -491,7 +496,9 @@ impl MixParser {
     /// Parse project name and version from defproject line.
     fn parse_project_line(line: &str) -> Option<(String, String)> {
         // defproject "name", "version", ...
-        let content = line.trim_start_matches("defproject(").trim_end_matches("),");
+        let content = line
+            .trim_start_matches("defproject(")
+            .trim_end_matches("),");
         let parts: Vec<&str> = content.split(',').collect();
 
         if parts.len() >= 2 {
@@ -566,7 +573,11 @@ impl MixParser {
 
                 // Split on first comma
                 if let Some((name_part, rest)) = inner.split_once(',') {
-                    let name = name_part.trim().trim_matches(':').trim_matches('"').trim_matches('\'');
+                    let name = name_part
+                        .trim()
+                        .trim_matches(':')
+                        .trim_matches('"')
+                        .trim_matches('\'');
                     let rest = rest.trim();
 
                     // Extract version
@@ -588,10 +599,16 @@ impl MixParser {
                                 let path = path_rest[..path_end].trim().trim_matches('"');
                                 Dependency::path(name, PathBuf::from(path))
                             } else {
-                                Dependency::hex(name, VersionReq::Exact(version.unwrap_or_else(|| "*".to_string())))
+                                Dependency::hex(
+                                    name,
+                                    VersionReq::Exact(version.unwrap_or_else(|| "*".to_string())),
+                                )
                             }
                         } else {
-                            Dependency::hex(name, VersionReq::Exact(version.unwrap_or_else(|| "*".to_string())))
+                            Dependency::hex(
+                                name,
+                                VersionReq::Exact(version.unwrap_or_else(|| "*".to_string())),
+                            )
                         }
                     } else if rest.contains("git:") {
                         if let Some(git_start) = rest.find("git:") {
@@ -613,7 +630,10 @@ impl MixParser {
                                 Dependency::git(name, "")
                             }
                         } else {
-                            Dependency::hex(name, VersionReq::Exact(version.unwrap_or_else(|| "*".to_string())))
+                            Dependency::hex(
+                                name,
+                                VersionReq::Exact(version.unwrap_or_else(|| "*".to_string())),
+                            )
                         }
                     } else {
                         // Hex dependency
@@ -717,7 +737,10 @@ mod tests {
         let config = ProjectConfig::new("my_app".to_string())
             .version("1.0.0")
             .add_lib_path(PathBuf::from("lib"))
-            .add_dep(Dependency::hex("logger", VersionReq::Minimum("1.0".to_string())));
+            .add_dep(Dependency::hex(
+                "logger",
+                VersionReq::Minimum("1.0".to_string()),
+            ));
         assert_eq!(config.name, "my_app");
         assert_eq!(config.version, "1.0.0");
         assert_eq!(config.dependencies.len(), 1);
@@ -778,7 +801,10 @@ mod tests {
             path: PathBuf::from("/deps/logger"),
         });
 
-        let deps = vec![Dependency::hex("logger", VersionReq::Minimum("1.0".to_string()))];
+        let deps = vec![Dependency::hex(
+            "logger",
+            VersionReq::Minimum("1.0".to_string()),
+        )];
         let resolved = resolver.resolve(&deps);
         assert_eq!(resolved.len(), 1);
         assert_eq!(resolved[0].version, "1.5.0");
@@ -799,8 +825,7 @@ mod tests {
 
     #[test]
     fn test_path_dependency_resolution() {
-        let resolver = DepResolver::new()
-            .with_base_path(PathBuf::from("/project"));
+        let resolver = DepResolver::new().with_base_path(PathBuf::from("/project"));
 
         let deps = vec![Dependency::path("my_dep", PathBuf::from("deps/my_dep"))];
         let resolved = resolver.resolve(&deps);
@@ -813,10 +838,12 @@ mod tests {
 
     #[test]
     fn test_git_dependency_resolution() {
-        let resolver = DepResolver::new()
-            .with_base_path(PathBuf::from("/project"));
+        let resolver = DepResolver::new().with_base_path(PathBuf::from("/project"));
 
-        let deps = vec![Dependency::git("ecto", "https://github.com/elixir-lang/ecto.git")];
+        let deps = vec![Dependency::git(
+            "ecto",
+            "https://github.com/elixir-lang/ecto.git",
+        )];
         let resolved = resolver.resolve(&deps);
 
         assert_eq!(resolved.len(), 1);
@@ -829,16 +856,20 @@ mod tests {
     fn test_lockfile_resolution() {
         let mut resolver = DepResolver::new();
         let mut lockfile = HashMap::new();
-        lockfile.insert("exact".to_string(), LockedDep {
-            package: "exact".to_string(),
-            version: "2.0.0".to_string(),
-            source: DepSource::Hex,
-        });
+        lockfile.insert(
+            "exact".to_string(),
+            LockedDep {
+                package: "exact".to_string(),
+                version: "2.0.0".to_string(),
+                source: DepSource::Hex,
+            },
+        );
         resolver.load_lockfile(lockfile);
 
-        let deps = vec![
-            Dependency::hex("exact", VersionReq::Exact("2.0.0".to_string())),
-        ];
+        let deps = vec![Dependency::hex(
+            "exact",
+            VersionReq::Exact("2.0.0".to_string()),
+        )];
         let resolved = resolver.resolve(&deps);
 
         assert_eq!(resolved.len(), 1);
@@ -855,7 +886,10 @@ mod tests {
             path: PathBuf::from("/deps/logger"),
         });
 
-        let deps = vec![Dependency::hex("logger", VersionReq::Minimum("1.0".to_string()))];
+        let deps = vec![Dependency::hex(
+            "logger",
+            VersionReq::Minimum("1.0".to_string()),
+        )];
         let lockfile = resolver.generate_lockfile(&deps);
 
         assert!(lockfile.contains_key("logger"));
@@ -872,7 +906,10 @@ mod tests {
         });
 
         // Request version 2.0.0 but only 1.5.0 is available
-        let deps = vec![Dependency::hex("logger", VersionReq::Minimum("2.0.0".to_string()))];
+        let deps = vec![Dependency::hex(
+            "logger",
+            VersionReq::Minimum("2.0.0".to_string()),
+        )];
         let resolved = resolver.resolve(&deps);
 
         // Should not resolve since version doesn't match
@@ -1001,9 +1038,15 @@ impl ReleaseManager {
 
     /// Build the release package.
     pub fn build(&self) -> Result<ReleasePackage, ReleaseError> {
-        let release_name = self.config.name.clone()
+        let release_name = self
+            .config
+            .name
+            .clone()
             .unwrap_or_else(|| "release".to_string());
-        let release_version = self.config.version.clone()
+        let release_version = self
+            .config
+            .version
+            .clone()
             .unwrap_or_else(|| "0.1.0".to_string());
 
         let output_path = self.config.output_dir.join(&release_name);

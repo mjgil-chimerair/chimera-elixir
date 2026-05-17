@@ -1,8 +1,8 @@
 #![no_main]
 
-use libfuzzer_sys::fuzz_target;
-use chimera_term::{encode_term, decode_term, Term, AtomTable};
 use chimera_allocator as _;
+use chimera_term::{decode_term, encode_term, AtomTable, Term};
+use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {
     // Create a fresh atom table for each fuzz run
@@ -26,11 +26,7 @@ fuzz_target!(|data: &[u8]| {
     }
 
     // Also test with some predefined terms to exercise different encodings
-    let mut test_terms = vec![
-        Term::Nil,
-        Term::SmallInt(42),
-        Term::SmallInt(-42),
-    ];
+    let mut test_terms = vec![Term::Nil, Term::SmallInt(42), Term::SmallInt(-42)];
 
     // Test atom creation
     if let Ok(test_atom) = atoms.try_intern("test") {
@@ -44,7 +40,9 @@ fuzz_target!(|data: &[u8]| {
     test_terms.push(Term::Float(3.14));
 
     // Test bigint
-    test_terms.push(Term::BigInt(chimera_term::BigInt(num_bigint::BigInt::from(12345))));
+    test_terms.push(Term::BigInt(chimera_term::BigInt(
+        num_bigint::BigInt::from(12345),
+    )));
 
     for term in test_terms {
         // Skip if we can't encode (e.g., BigInt might fail if not supported)
@@ -52,7 +50,10 @@ fuzz_target!(|data: &[u8]| {
             let mut atoms2 = AtomTable::new();
             if let Ok((remaining, decoded)) = decode_term(&encoded, &mut atoms2) {
                 if remaining.is_empty() {
-                    assert_eq!(term, decoded, "ETF encode/decode round-trip failed for predefined term");
+                    assert_eq!(
+                        term, decoded,
+                        "ETF encode/decode round-trip failed for predefined term"
+                    );
                 }
             }
         }

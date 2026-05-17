@@ -1,6 +1,6 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use chimera_parser::{Parser, ParseOptions};
+use chimera_parser::{ParseOptions, Parser};
 use chimera_source::SourceFileId;
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use std::fs::read_to_string;
 
 /// Create a complex Elixir module for parsing benchmark
@@ -47,13 +47,14 @@ defmodule Math do
     end
   end
 end
-"#.to_string()
+"#
+    .to_string()
 }
 
 fn bench_parser(c: &mut Criterion) {
     let mut group = c.benchmark_group("parser");
     group.sample_size(100);
-    
+
     group.bench_function("parse_complex_module", |b| {
         let source = create_complex_module_source();
         b.iter(|| {
@@ -62,7 +63,7 @@ fn bench_parser(c: &mut Criterion) {
             black_box(result);
         });
     });
-    
+
     group.finish();
 }
 

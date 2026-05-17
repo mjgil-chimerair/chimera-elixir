@@ -183,28 +183,16 @@ impl Stdlib {
         let mut modules = HashMap::new();
 
         // Register Kernel
-        modules.insert(
-            ModuleName::new(vec![Atom::new(0)]),
-            Self::kernel_module(),
-        );
+        modules.insert(ModuleName::new(vec![Atom::new(0)]), Self::kernel_module());
 
         // Register Macro
-        modules.insert(
-            ModuleName::new(vec![Atom::new(1)]),
-            Self::macro_module(),
-        );
+        modules.insert(ModuleName::new(vec![Atom::new(1)]), Self::macro_module());
 
         // Register Module
-        modules.insert(
-            ModuleName::new(vec![Atom::new(2)]),
-            Self::module_module(),
-        );
+        modules.insert(ModuleName::new(vec![Atom::new(2)]), Self::module_module());
 
         // Register Code
-        modules.insert(
-            ModuleName::new(vec![Atom::new(3)]),
-            Self::code_module(),
-        );
+        modules.insert(ModuleName::new(vec![Atom::new(3)]), Self::code_module());
 
         // Register Kernel.SpecialForms
         modules.insert(
@@ -232,20 +220,50 @@ impl Stdlib {
         // Arithmetic - these map to BEAM opcodes
         module.add_builtin(Atom::new(10), 2, BuiltinKind::Arithmetic, "+/2 addition");
         module.add_builtin(Atom::new(11), 2, BuiltinKind::Arithmetic, "-/2 subtraction");
-        module.add_builtin(Atom::new(12), 2, BuiltinKind::Arithmetic, "*/2 multiplication");
+        module.add_builtin(
+            Atom::new(12),
+            2,
+            BuiltinKind::Arithmetic,
+            "*/2 multiplication",
+        );
         module.add_builtin(Atom::new(13), 2, BuiltinKind::Arithmetic, "//2 division");
         module.add_builtin(Atom::new(14), 1, BuiltinKind::Arithmetic, "+/1 unary plus");
         module.add_builtin(Atom::new(15), 1, BuiltinKind::Arithmetic, "-/1 unary minus");
 
         // Comparison - these map to BEAM comparison opcodes
         module.add_builtin(Atom::new(16), 2, BuiltinKind::Comparison, "==/2 equal");
-        module.add_builtin(Atom::new(17), 2, BuiltinKind::Comparison, "=/=/2 strict equal");
+        module.add_builtin(
+            Atom::new(17),
+            2,
+            BuiltinKind::Comparison,
+            "=/=/2 strict equal",
+        );
         module.add_builtin(Atom::new(18), 2, BuiltinKind::Comparison, "!=/2 not equal");
-        module.add_builtin(Atom::new(19), 2, BuiltinKind::Comparison, "=/=/2 strict not equal");
+        module.add_builtin(
+            Atom::new(19),
+            2,
+            BuiltinKind::Comparison,
+            "=/=/2 strict not equal",
+        );
         module.add_builtin(Atom::new(20), 2, BuiltinKind::Comparison, "</2 less than");
-        module.add_builtin(Atom::new(21), 2, BuiltinKind::Comparison, "<=/2 less than or equal");
-        module.add_builtin(Atom::new(22), 2, BuiltinKind::Comparison, ">/2 greater than");
-        module.add_builtin(Atom::new(23), 2, BuiltinKind::Comparison, ">=/2 greater than or equal");
+        module.add_builtin(
+            Atom::new(21),
+            2,
+            BuiltinKind::Comparison,
+            "<=/2 less than or equal",
+        );
+        module.add_builtin(
+            Atom::new(22),
+            2,
+            BuiltinKind::Comparison,
+            ">/2 greater than",
+        );
+        module.add_builtin(
+            Atom::new(23),
+            2,
+            BuiltinKind::Comparison,
+            ">=/2 greater than or equal",
+        );
 
         // Boolean
         module.add_builtin(Atom::new(24), 1, BuiltinKind::Builtin, "not/1 logical not");
@@ -253,15 +271,30 @@ impl Stdlib {
         module.add_builtin(Atom::new(26), 2, BuiltinKind::Builtin, "or/2 logical or");
 
         // List operations
-        module.add_builtin(Atom::new(27), 2, BuiltinKind::List, "++/2 list concatenation");
+        module.add_builtin(
+            Atom::new(27),
+            2,
+            BuiltinKind::List,
+            "++/2 list concatenation",
+        );
         module.add_builtin(Atom::new(28), 2, BuiltinKind::List, "--/2 list difference");
         module.add_builtin(Atom::new(63), 2, BuiltinKind::List, "length/1");
         module.add_builtin(Atom::new(59), 1, BuiltinKind::List, "hd/1");
         module.add_builtin(Atom::new(73), 1, BuiltinKind::List, "tl/1");
 
         // Binary operations
-        module.add_builtin(Atom::new(29), 2, BuiltinKind::Binary, "<>/2 binary concatenation");
-        module.add_builtin(Atom::new(30), 2, BuiltinKind::Binary, "++>/2 string concatenation");
+        module.add_builtin(
+            Atom::new(29),
+            2,
+            BuiltinKind::Binary,
+            "<>/2 binary concatenation",
+        );
+        module.add_builtin(
+            Atom::new(30),
+            2,
+            BuiltinKind::Binary,
+            "++>/2 string concatenation",
+        );
 
         // Type checks - these emit type test opcodes
         module.add_type_check(Atom::new(31), 1, "is_atom/1");
@@ -289,13 +322,33 @@ impl Stdlib {
         module.add_builtin(Atom::new(71), 0, BuiltinKind::Node, "self/0");
 
         // Conversion functions
-        module.add_builtin(Atom::new(48), 1, BuiltinKind::Conversion, "atom_to_binary/1");
+        module.add_builtin(
+            Atom::new(48),
+            1,
+            BuiltinKind::Conversion,
+            "atom_to_binary/1",
+        );
         module.add_builtin(Atom::new(49), 1, BuiltinKind::Conversion, "atom_to_list/1");
-        module.add_builtin(Atom::new(50), 1, BuiltinKind::Conversion, "binary_to_atom/1");
-        module.add_builtin(Atom::new(51), 1, BuiltinKind::Conversion, "binary_to_list/1");
+        module.add_builtin(
+            Atom::new(50),
+            1,
+            BuiltinKind::Conversion,
+            "binary_to_atom/1",
+        );
+        module.add_builtin(
+            Atom::new(51),
+            1,
+            BuiltinKind::Conversion,
+            "binary_to_list/1",
+        );
         module.add_builtin(Atom::new(52), 1, BuiltinKind::Conversion, "bit_size/1");
         module.add_builtin(Atom::new(53), 1, BuiltinKind::Conversion, "byte_size/1");
-        module.add_builtin(Atom::new(61), 2, BuiltinKind::Conversion, "integer_to_binary/2");
+        module.add_builtin(
+            Atom::new(61),
+            2,
+            BuiltinKind::Conversion,
+            "integer_to_binary/2",
+        );
 
         // Other Kernel functions
         module.add_builtin(Atom::new(45), 1, BuiltinKind::Builtin, "abs/1");
@@ -313,7 +366,12 @@ impl Stdlib {
         module.add_builtin(Atom::new(70), 1, BuiltinKind::Builtin, "round/1");
         module.add_builtin(Atom::new(72), 1, BuiltinKind::Builtin, "size/1");
         module.add_builtin(Atom::new(74), 1, BuiltinKind::Builtin, "trunc/1");
-        module.add_builtin(Atom::new(76), 0, BuiltinKind::Builtin, "unique_identifier/0");
+        module.add_builtin(
+            Atom::new(76),
+            0,
+            BuiltinKind::Builtin,
+            "unique_identifier/0",
+        );
 
         // Kernel macros (special forms handled separately)
         module.add_macro(Atom::new(77), 2, "if/2");
@@ -550,7 +608,10 @@ impl Protocols {
     /// Check if a type implements a specific protocol.
     pub fn implements(&self, protocol_name: &ModuleName, type_module: &ModuleName) -> bool {
         if let Some(proto) = self.protocols.get(protocol_name) {
-            proto.implementations.iter().any(|impl_module| impl_module == type_module)
+            proto
+                .implementations
+                .iter()
+                .any(|impl_module| impl_module == type_module)
         } else {
             false
         }
@@ -558,14 +619,20 @@ impl Protocols {
 
     /// Get all implementations of a protocol.
     pub fn implementations_of(&self, protocol_name: &ModuleName) -> Option<&Vec<ModuleName>> {
-        self.protocols.get(protocol_name).map(|p| &p.implementations)
+        self.protocols
+            .get(protocol_name)
+            .map(|p| &p.implementations)
     }
 
     /// Find which protocol implements a given function.
     /// Returns the protocol name if found.
     pub fn find_protocol_for_function(&self, function_name: &str) -> Option<ModuleName> {
         for (proto_name, proto) in &self.protocols {
-            if proto.functions.iter().any(|(name, _)| *name == function_name) {
+            if proto
+                .functions
+                .iter()
+                .any(|(name, _)| *name == function_name)
+            {
                 return Some(proto_name.clone());
             }
         }
@@ -673,58 +740,74 @@ impl Exceptions {
         let mut exceptions = Vec::new();
 
         // RuntimeError (error code 1)
-        exceptions.push(ExceptionDef::with_code(Atom::new(400), 1)
-            .with_description("runtime error"));
+        exceptions
+            .push(ExceptionDef::with_code(Atom::new(400), 1).with_description("runtime error"));
 
         // ArgumentError (error code 2)
-        exceptions.push(ExceptionDef::with_code(Atom::new(401), 2)
-            .with_description("argument error")
-            .with_field("argument"));
+        exceptions.push(
+            ExceptionDef::with_code(Atom::new(401), 2)
+                .with_description("argument error")
+                .with_field("argument"),
+        );
 
         // ArithmeticError (error code 3)
-        exceptions.push(ExceptionDef::with_code(Atom::new(402), 3)
-            .with_description("arithmetic error"));
+        exceptions
+            .push(ExceptionDef::with_code(Atom::new(402), 3).with_description("arithmetic error"));
 
         // BadArityError (error code 4)
-        exceptions.push(ExceptionDef::with_code(Atom::new(403), 4)
-            .with_description("bad arity error")
-            .with_field("function")
-            .with_field("arity"));
+        exceptions.push(
+            ExceptionDef::with_code(Atom::new(403), 4)
+                .with_description("bad arity error")
+                .with_field("function")
+                .with_field("arity"),
+        );
 
         // BadFunctionError (error code 5)
-        exceptions.push(ExceptionDef::with_code(Atom::new(404), 5)
-            .with_description("bad function error")
-            .with_field("function"));
+        exceptions.push(
+            ExceptionDef::with_code(Atom::new(404), 5)
+                .with_description("bad function error")
+                .with_field("function"),
+        );
 
         // BadMatchError (error code 6)
-        exceptions.push(ExceptionDef::with_code(Atom::new(405), 6)
-            .with_description("bad match error")
-            .with_field("value"));
+        exceptions.push(
+            ExceptionDef::with_code(Atom::new(405), 6)
+                .with_description("bad match error")
+                .with_field("value"),
+        );
 
         // CaseClauseError (error code 7)
-        exceptions.push(ExceptionDef::with_code(Atom::new(406), 7)
-            .with_description("case clause error")
-            .with_field("value"));
+        exceptions.push(
+            ExceptionDef::with_code(Atom::new(406), 7)
+                .with_description("case clause error")
+                .with_field("value"),
+        );
 
         // CondClauseError (error code 8)
-        exceptions.push(ExceptionDef::with_code(Atom::new(407), 8)
-            .with_description("cond clause error"));
+        exceptions
+            .push(ExceptionDef::with_code(Atom::new(407), 8).with_description("cond clause error"));
 
         // Protocol.UndefinedError (error code 9)
-        exceptions.push(ExceptionDef::with_code(Atom::new(408), 9)
-            .with_description("protocol undefined error")
-            .with_field("protocol")
-            .with_field("type"));
+        exceptions.push(
+            ExceptionDef::with_code(Atom::new(408), 9)
+                .with_description("protocol undefined error")
+                .with_field("protocol")
+                .with_field("type"),
+        );
 
         // SyntaxError (error code 10)
-        exceptions.push(ExceptionDef::with_code(Atom::new(409), 10)
-            .with_description("syntax error")
-            .with_field("token"));
+        exceptions.push(
+            ExceptionDef::with_code(Atom::new(409), 10)
+                .with_description("syntax error")
+                .with_field("token"),
+        );
 
         // TokenMissingError (error code 11)
-        exceptions.push(ExceptionDef::with_code(Atom::new(410), 11)
-            .with_description("token missing error")
-            .with_field("expected"));
+        exceptions.push(
+            ExceptionDef::with_code(Atom::new(410), 11)
+                .with_description("token missing error")
+                .with_field("expected"),
+        );
 
         Exceptions { exceptions }
     }
@@ -790,7 +873,11 @@ mod tests {
         let forms = forms.unwrap();
         // Special forms should all be marked as special_form = true
         for func in forms.functions() {
-            assert!(func.special_form, "Function {:?} should be special form", func.name);
+            assert!(
+                func.special_form,
+                "Function {:?} should be special form",
+                func.name
+            );
         }
     }
 
@@ -919,7 +1006,9 @@ mod tests {
     #[test]
     fn test_protocols_enumerable_functions() {
         let protocols = Protocols::new();
-        let enumerable = protocols.get(&ModuleName::new(vec![Atom::new(302)])).unwrap();
+        let enumerable = protocols
+            .get(&ModuleName::new(vec![Atom::new(302)]))
+            .unwrap();
         // Enumerable should have count, member?, slice, reduce, init, next
         let func_names: Vec<_> = enumerable.functions.iter().map(|(n, _)| *n).collect();
         assert!(func_names.contains(&"count"));
@@ -957,8 +1046,7 @@ mod tests {
 
     #[test]
     fn test_exception_with_original_module() {
-        let exc = ExceptionDef::new(Atom::new(500))
-            .with_original_module(Atom::new(600));
+        let exc = ExceptionDef::new(Atom::new(500)).with_original_module(Atom::new(600));
         assert!(exc.original_module.is_some());
         assert_eq!(exc.original_module.unwrap().id(), 600);
     }

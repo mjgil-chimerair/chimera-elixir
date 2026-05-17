@@ -1,7 +1,7 @@
 #! Parser for the Rust/Zig Elixir compiler.
- //!
- //! Converts lexer tokens into AST (Abstract Syntax Tree) and CST (Concrete Syntax Tree).
- //! Handles expressions, modules, clauses, and all Elixir constructs.
+//!
+//! Converts lexer tokens into AST (Abstract Syntax Tree) and CST (Concrete Syntax Tree).
+//! Handles expressions, modules, clauses, and all Elixir constructs.
 //!
 //! ## Examples
 //!
@@ -72,9 +72,9 @@
 #[cfg(test)]
 use chimera_allocator as _;
 
-use chimera_ast::{AST, Hygiene, Meta};
-use chimera_lexer::{LexError, Token, TokenKind, TokenValue, TokenStream};
-use chimera_source::{SourceFileId, SourceSpan, SourceOffset};
+use chimera_ast::{Hygiene, Meta, AST};
+use chimera_lexer::{LexError, Token, TokenKind, TokenStream, TokenValue};
+use chimera_source::{SourceFileId, SourceOffset, SourceSpan};
 use chimera_term::Atom;
 use std::collections::HashMap;
 
@@ -151,10 +151,20 @@ impl<'a> Parser<'a> {
             ("when", 10),
             ("or", 20),
             ("and", 30),
-            ("==", 40), ("!=", 40), ("===", 40), ("!==", 40),
-            ("<", 50), ("<=", 50), (">", 50), (">=", 50),
-            ("++", 60), ("--", 60), ("+", 60), ("-", 60),
-            ("*", 70), ("/", 70),
+            ("==", 40),
+            ("!=", 40),
+            ("===", 40),
+            ("!==", 40),
+            ("<", 50),
+            ("<=", 50),
+            (">", 50),
+            (">=", 50),
+            ("++", 60),
+            ("--", 60),
+            ("+", 60),
+            ("-", 60),
+            ("*", 70),
+            ("/", 70),
             ("@", 80), // type operator
             (".", 90),
             ("::", 95),
@@ -264,7 +274,8 @@ impl<'a> Parser<'a> {
                 match self.peek_token() {
                     Ok(t) => {
                         if t.kind == TokenKind::Newline {
-                            self.next_token().map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
+                            self.next_token()
+                                .map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
                         } else {
                             break;
                         }
@@ -332,7 +343,9 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_expression_with_precedence(&mut self, min_prec: i32) -> Result<AST, ParseError> {
-        let token = self.next_token().map_err(|_e| ParseError::UnexpectedToken(TokenKind::Error, self.make_span()))?;
+        let token = self
+            .next_token()
+            .map_err(|_e| ParseError::UnexpectedToken(TokenKind::Error, self.make_span()))?;
 
         let mut left = match token.kind {
             TokenKind::Identifier => {
@@ -351,12 +364,8 @@ impl<'a> Parser<'a> {
                 self.expect_token(TokenKind::CloseParen)?;
                 Ok(inner)
             }
-            TokenKind::OpenBracket => {
-                self.parse_list_or_binary()
-            }
-            TokenKind::OpenBrace => {
-                self.parse_map_or_tuple()
-            }
+            TokenKind::OpenBracket => self.parse_list_or_binary(),
+            TokenKind::OpenBrace => self.parse_map_or_tuple(),
             TokenKind::String => {
                 let s = match token.value {
                     TokenValue::String(s) => s,
@@ -387,67 +396,53 @@ impl<'a> Parser<'a> {
             }
             TokenKind::Colon => {
                 // :atom_name
-                let name_token = self.next_token().map_err(|_| ParseError::InvalidExpression(token.span))?;
+                let name_token = self
+                    .next_token()
+                    .map_err(|_| ParseError::InvalidExpression(token.span))?;
                 let name = match name_token.value {
                     TokenValue::Identifier(s) => s,
-                    _ => return Err(ParseError::UnexpectedToken(name_token.kind, name_token.span)),
+                    _ => {
+                        return Err(ParseError::UnexpectedToken(
+                            name_token.kind,
+                            name_token.span,
+                        ))
+                    }
                 };
                 Ok(AST::Atom(self.intern_atom(&name)))
             }
             TokenKind::At => {
                 // @attribute
-                let attr_token = self.next_token().map_err(|_| ParseError::InvalidExpression(token.span))?;
+                let attr_token = self
+                    .next_token()
+                    .map_err(|_| ParseError::InvalidExpression(token.span))?;
                 let attr_name = match attr_token.value {
                     TokenValue::Identifier(s) => s,
-                    _ => return Err(ParseError::UnexpectedToken(attr_token.kind, attr_token.span)),
+                    _ => {
+                        return Err(ParseError::UnexpectedToken(
+                            attr_token.kind,
+                            attr_token.span,
+                        ))
+                    }
                 };
                 Ok(AST::Identifier {
                     name: format!("@{}", attr_name),
                     meta: self.make_meta(&token.span),
                 })
             }
-            TokenKind::Capture => {
-                self.parse_capture()
-            }
-            TokenKind::KeywordFn => {
-                self.parse_fn()
-            }
-            TokenKind::KeywordIf => {
-                self.parse_if()
-            }
-            TokenKind::KeywordUnless => {
-                self.parse_unless()
-            }
-            TokenKind::KeywordCase => {
-                self.parse_case()
-            }
-            TokenKind::KeywordReceive => {
-                self.parse_receive()
-            }
-            TokenKind::KeywordTry => {
-                self.parse_try()
-            }
-            TokenKind::KeywordCond => {
-                self.parse_cond()
-            }
-            TokenKind::KeywordWith => {
-                self.parse_with()
-            }
-            TokenKind::KeywordQuote => {
-                self.parse_quote()
-            }
-            TokenKind::KeywordDefmodule => {
-                self.parse_defmodule()
-            }
-            TokenKind::KeywordDef => {
-                self.parse_def(TokenKind::KeywordDef)
-            }
-            TokenKind::KeywordDefp => {
-                self.parse_def(TokenKind::KeywordDefp)
-            }
-            TokenKind::KeywordDefmacro => {
-                self.parse_def(TokenKind::KeywordDefmacro)
-            }
+            TokenKind::Capture => self.parse_capture(),
+            TokenKind::KeywordFn => self.parse_fn(),
+            TokenKind::KeywordIf => self.parse_if(),
+            TokenKind::KeywordUnless => self.parse_unless(),
+            TokenKind::KeywordCase => self.parse_case(),
+            TokenKind::KeywordReceive => self.parse_receive(),
+            TokenKind::KeywordTry => self.parse_try(),
+            TokenKind::KeywordCond => self.parse_cond(),
+            TokenKind::KeywordWith => self.parse_with(),
+            TokenKind::KeywordQuote => self.parse_quote(),
+            TokenKind::KeywordDefmodule => self.parse_defmodule(),
+            TokenKind::KeywordDef => self.parse_def(TokenKind::KeywordDef),
+            TokenKind::KeywordDefp => self.parse_def(TokenKind::KeywordDefp),
+            TokenKind::KeywordDefmacro => self.parse_def(TokenKind::KeywordDefmacro),
             TokenKind::AliasIdentifier => {
                 let segments = match token.value {
                     TokenValue::Identifier(s) => self.parse_alias_segments(&s),
@@ -458,18 +453,10 @@ impl<'a> Parser<'a> {
                     meta: self.make_meta(&token.span),
                 })
             }
-            TokenKind::Percent => {
-                self.parse_map()
-            }
-            TokenKind::SigilStart => {
-                self.parse_sigil()
-            }
-            TokenKind::LessThanLessThan => {
-                self.parse_binary()
-            }
-            TokenKind::DotDot => {
-                self.parse_range()
-            }
+            TokenKind::Percent => self.parse_map(),
+            TokenKind::SigilStart => self.parse_sigil(),
+            TokenKind::LessThanLessThan => self.parse_binary(),
+            TokenKind::DotDot => self.parse_range(),
             TokenKind::Plus | TokenKind::Minus | TokenKind::Star | TokenKind::Slash => {
                 // Binary operator - get the operator string
                 let op_str = match token.kind {
@@ -551,7 +538,8 @@ impl<'a> Parser<'a> {
                 break;
             }
 
-            self.next_token().map_err(|_| ParseError::InvalidExpression(op_token.span))?;
+            self.next_token()
+                .map_err(|_| ParseError::InvalidExpression(op_token.span))?;
 
             let next_prec = if op_str == "when" || op_str == "and" || op_str == "or" {
                 prec + 1
@@ -571,7 +559,11 @@ impl<'a> Parser<'a> {
         left
     }
 
-    fn parse_identifier_or_call(&mut self, ident: &str, span: SourceSpan) -> Result<AST, ParseError> {
+    fn parse_identifier_or_call(
+        &mut self,
+        ident: &str,
+        span: SourceSpan,
+    ) -> Result<AST, ParseError> {
         // Check if this is a function call with parentheses or keyword args
         let mut args: Vec<AST> = Vec::new();
         let mut is_call = false;
@@ -581,16 +573,20 @@ impl<'a> Parser<'a> {
                 Ok(t) => {
                     // Check for open parenthesis (function call)
                     if t.kind == TokenKind::OpenParen {
-                        self.next_token().map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
+                        self.next_token()
+                            .map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
                         args = self.parse_call_args()?;
                         is_call = true;
                         break;
                     }
                     // Check for dot (remote call or access)
                     else if t.kind == TokenKind::Dot {
-                        self.next_token().map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
+                        self.next_token()
+                            .map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
                         // Parse the rest after the dot
-                        let next_tok = self.next_token().map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
+                        let next_tok = self
+                            .next_token()
+                            .map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
                         if let TokenValue::Identifier(_next_ident) = next_tok.value {
                             // This is a remote call like Module.function
                             // For now just return the identifier, full remote call parsing would follow
@@ -642,11 +638,13 @@ impl<'a> Parser<'a> {
             match self.peek_token() {
                 Ok(t) => {
                     if t.kind == TokenKind::CloseParen {
-                        self.next_token().map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
+                        self.next_token()
+                            .map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
                         break;
                     }
                     if t.kind == TokenKind::Comma {
-                        self.next_token().map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
+                        self.next_token()
+                            .map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
                         continue;
                     }
                     if t.kind == TokenKind::KeywordDo {
@@ -672,7 +670,8 @@ impl<'a> Parser<'a> {
             match self.peek_token() {
                 Ok(t) => {
                     if t.kind == TokenKind::Newline {
-                        self.next_token().map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
+                        self.next_token()
+                            .map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
                     } else {
                         break;
                     }
@@ -694,7 +693,8 @@ impl<'a> Parser<'a> {
                         break;
                     }
                     if t.kind == TokenKind::KeywordEnd {
-                        self.next_token().map_err(|_| ParseError::UnterminatedExpression(span))?;
+                        self.next_token()
+                            .map_err(|_| ParseError::UnterminatedExpression(span))?;
                         break;
                     }
                 }
@@ -724,10 +724,13 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_list_or_binary(&mut self) -> Result<AST, ParseError> {
-        let token = self.peek_token().map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
+        let token = self
+            .peek_token()
+            .map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
         if token.kind == TokenKind::CloseBracket {
             // Empty list or binary
-            self.next_token().map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
+            self.next_token()
+                .map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
             return Ok(AST::List(vec![]));
         }
         // Parse list
@@ -738,10 +741,12 @@ impl<'a> Parser<'a> {
             match self.peek_token() {
                 Ok(t) => {
                     if t.kind == TokenKind::CloseBracket {
-                        self.next_token().map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
+                        self.next_token()
+                            .map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
                         break;
                     } else if t.kind == TokenKind::Comma {
-                        self.next_token().map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
+                        self.next_token()
+                            .map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
                         continue;
                     }
                 }
@@ -752,10 +757,13 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_map_or_tuple(&mut self) -> Result<AST, ParseError> {
-        let token = self.peek_token().map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
+        let token = self
+            .peek_token()
+            .map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
         if token.kind == TokenKind::CloseBrace {
             // Empty tuple
-            self.next_token().map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
+            self.next_token()
+                .map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
             return Ok(AST::Tuple(vec![]));
         }
         // Parse as tuple for now
@@ -766,10 +774,12 @@ impl<'a> Parser<'a> {
             match self.peek_token() {
                 Ok(t) => {
                     if t.kind == TokenKind::CloseBrace {
-                        self.next_token().map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
+                        self.next_token()
+                            .map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
                         break;
                     } else if t.kind == TokenKind::Comma {
-                        self.next_token().map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
+                        self.next_token()
+                            .map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
                         continue;
                     }
                 }
@@ -788,7 +798,8 @@ impl<'a> Parser<'a> {
             match self.peek_token() {
                 Ok(t) => {
                     if t.kind == TokenKind::CloseBrace {
-                        self.next_token().map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
+                        self.next_token()
+                            .map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
                         break;
                     }
                 }
@@ -800,7 +811,8 @@ impl<'a> Parser<'a> {
             match self.peek_token() {
                 Ok(t) => {
                     if t.kind == TokenKind::Comma {
-                        self.next_token().map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
+                        self.next_token()
+                            .map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
                         continue;
                     }
                 }
@@ -812,7 +824,9 @@ impl<'a> Parser<'a> {
 
     fn parse_sigil(&mut self) -> Result<AST, ParseError> {
         // Parse sigil: ~r{content}options
-        let token = self.next_token().map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
+        let token = self
+            .next_token()
+            .map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
         let content = match token.value {
             TokenValue::String(s) => s,
             _ => return Err(ParseError::UnexpectedToken(token.kind, token.span)),
@@ -827,7 +841,8 @@ impl<'a> Parser<'a> {
             match self.peek_token() {
                 Ok(t) => {
                     if t.kind == TokenKind::GreaterThanGreaterThan {
-                        self.next_token().map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
+                        self.next_token()
+                            .map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
                         break;
                     }
                 }
@@ -839,7 +854,8 @@ impl<'a> Parser<'a> {
             match self.peek_token() {
                 Ok(t) => {
                     if t.kind == TokenKind::Comma {
-                        self.next_token().map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
+                        self.next_token()
+                            .map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
                         continue;
                     }
                 }
@@ -856,7 +872,9 @@ impl<'a> Parser<'a> {
         // This is a fundamental issue with how we're parsing
         // For now, just consume the dots and return an error
         let left = AST::Integer(0); // dummy
-        let dots_tok = self.next_token().map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
+        let dots_tok = self
+            .next_token()
+            .map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
         let right = self.parse_expression_with_precedence(0)?;
         Ok(AST::BinaryOp {
             op: self.intern_atom(".."),
@@ -868,7 +886,9 @@ impl<'a> Parser<'a> {
 
     fn parse_capture(&mut self) -> Result<AST, ParseError> {
         // &function/arity or &module.function/arity
-        let token = self.next_token().map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
+        let token = self
+            .next_token()
+            .map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
         match token.kind {
             TokenKind::Identifier => {
                 let name = match token.value {
@@ -897,13 +917,16 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_fn(&mut self) -> Result<AST, ParseError> {
-        let token = self.next_token().map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
+        let token = self
+            .next_token()
+            .map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
         let mut clauses = Vec::new();
         loop {
             match self.peek_token() {
                 Ok(t) => {
                     if t.kind == TokenKind::KeywordEnd {
-                        self.next_token().map_err(|_| ParseError::UnterminatedExpression(token.span))?;
+                        self.next_token()
+                            .map_err(|_| ParseError::UnterminatedExpression(token.span))?;
                         break;
                     }
                 }
@@ -941,7 +964,8 @@ impl<'a> Parser<'a> {
         match self.peek_token() {
             Ok(t) => {
                 if t.kind == TokenKind::KeywordDo {
-                    self.next_token().map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
+                    self.next_token()
+                        .map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
                 }
             }
             Err(_) => return Err(ParseError::UnterminatedExpression(self.make_span())),
@@ -953,7 +977,8 @@ impl<'a> Parser<'a> {
         let else_body = match self.peek_token() {
             Ok(t) => {
                 if t.kind == TokenKind::KeywordElse {
-                    self.next_token().map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
+                    self.next_token()
+                        .map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
                     Some(self.parse_do_block(self.make_span())?)
                 } else {
                     None
@@ -967,7 +992,10 @@ impl<'a> Parser<'a> {
             Ok(AST::Cond {
                 clauses: vec![
                     (Box::new(condition), Box::new(then_body)),
-                    (Box::new(AST::Atom(self.intern_atom("true"))), Box::new(else_body)),
+                    (
+                        Box::new(AST::Atom(self.intern_atom("true"))),
+                        Box::new(else_body),
+                    ),
                 ],
                 meta: self.make_meta(&span),
             })
@@ -988,7 +1016,8 @@ impl<'a> Parser<'a> {
         match self.peek_token() {
             Ok(t) => {
                 if t.kind == TokenKind::KeywordDo {
-                    self.next_token().map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
+                    self.next_token()
+                        .map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
                 }
             }
             Err(_) => return Err(ParseError::UnterminatedExpression(self.make_span())),
@@ -997,13 +1026,14 @@ impl<'a> Parser<'a> {
         let then_body = self.parse_do_block(self.make_span())?;
         let span = self.make_span();
         Ok(AST::Cond {
-            clauses: vec![
-                (Box::new(AST::UnaryOp {
+            clauses: vec![(
+                Box::new(AST::UnaryOp {
                     op: self.intern_atom("not"),
                     arg: Box::new(condition),
                     meta: self.make_meta(&span),
-                }), Box::new(then_body)),
-            ],
+                }),
+                Box::new(then_body),
+            )],
             meta: self.make_meta(&span),
         })
     }
@@ -1017,7 +1047,8 @@ impl<'a> Parser<'a> {
         match self.peek_token() {
             Ok(t) => {
                 if t.kind == TokenKind::KeywordDo {
-                    self.next_token().map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
+                    self.next_token()
+                        .map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
                 }
             }
             Err(_) => return Err(ParseError::UnterminatedExpression(self.make_span())),
@@ -1028,7 +1059,8 @@ impl<'a> Parser<'a> {
             match self.peek_token() {
                 Ok(t) => {
                     if t.kind == TokenKind::KeywordEnd {
-                        self.next_token().map_err(|_| ParseError::UnterminatedExpression(self.make_span()))?;
+                        self.next_token()
+                            .map_err(|_| ParseError::UnterminatedExpression(self.make_span()))?;
                         break;
                     }
                 }
@@ -1058,7 +1090,9 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_receive(&mut self) -> Result<AST, ParseError> {
-        let token = self.next_token().map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
+        let token = self
+            .next_token()
+            .map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
         self.expect_token(TokenKind::KeywordDo)?;
 
         let mut clauses = Vec::new();
@@ -1067,10 +1101,12 @@ impl<'a> Parser<'a> {
             match self.peek_token() {
                 Ok(t) => {
                     if t.kind == TokenKind::KeywordEnd {
-                        self.next_token().map_err(|_| ParseError::UnterminatedExpression(token.span))?;
+                        self.next_token()
+                            .map_err(|_| ParseError::UnterminatedExpression(token.span))?;
                         break;
                     } else if t.kind == TokenKind::KeywordAfter {
-                        self.next_token().map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
+                        self.next_token()
+                            .map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
                         let timeout = self.parse_expression_with_precedence(0)?;
                         self.expect_token(TokenKind::Capture)?;
                         let body = self.parse_expression_with_precedence(0)?;
@@ -1091,7 +1127,9 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_try(&mut self) -> Result<AST, ParseError> {
-        let token = self.next_token().map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
+        let token = self
+            .next_token()
+            .map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
         self.expect_token(TokenKind::KeywordDo)?;
         let body_block = self.parse_do_block(token.span.clone())?;
         let body_exprs = match body_block {
@@ -1107,18 +1145,22 @@ impl<'a> Parser<'a> {
             match self.peek_token() {
                 Ok(t) => {
                     if t.kind == TokenKind::KeywordEnd {
-                        self.next_token().map_err(|_| ParseError::UnterminatedExpression(token.span))?;
+                        self.next_token()
+                            .map_err(|_| ParseError::UnterminatedExpression(token.span))?;
                         break;
                     } else if t.kind == TokenKind::KeywordRescue {
-                        self.next_token().map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
+                        self.next_token()
+                            .map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
                         let clause = self.parse_case_clause()?;
                         rescue.push(clause);
                     } else if t.kind == TokenKind::KeywordCatch {
-                        self.next_token().map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
+                        self.next_token()
+                            .map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
                         let clause = self.parse_case_clause()?;
                         catch.push(clause);
                     } else if t.kind == TokenKind::KeywordAfter {
-                        self.next_token().map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
+                        self.next_token()
+                            .map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
                         after = Some(Box::new(self.parse_expression_with_precedence(0)?));
                     }
                 }
@@ -1146,7 +1188,9 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_cond(&mut self) -> Result<AST, ParseError> {
-        let token = self.next_token().map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
+        let token = self
+            .next_token()
+            .map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
         self.expect_token(TokenKind::KeywordDo)?;
 
         let mut clauses = Vec::new();
@@ -1154,7 +1198,8 @@ impl<'a> Parser<'a> {
             match self.peek_token() {
                 Ok(t) => {
                     if t.kind == TokenKind::KeywordEnd {
-                        self.next_token().map_err(|_| ParseError::UnterminatedExpression(token.span))?;
+                        self.next_token()
+                            .map_err(|_| ParseError::UnterminatedExpression(token.span))?;
                         break;
                     }
                 }
@@ -1173,7 +1218,9 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_with(&mut self) -> Result<AST, ParseError> {
-        let token = self.next_token().map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
+        let token = self
+            .next_token()
+            .map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
         let mut bindings = Vec::new();
 
         loop {
@@ -1185,7 +1232,8 @@ impl<'a> Parser<'a> {
             match self.peek_token() {
                 Ok(t) => {
                     if t.kind == TokenKind::Comma {
-                        self.next_token().map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
+                        self.next_token()
+                            .map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
                         continue;
                     }
                 }
@@ -1205,7 +1253,9 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_quote(&mut self) -> Result<AST, ParseError> {
-        let token = self.next_token().map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
+        let token = self
+            .next_token()
+            .map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
         self.expect_token(TokenKind::OpenParen)?;
         let value = self.parse_expression_with_precedence(0)?;
         self.expect_token(TokenKind::CloseParen)?;
@@ -1217,7 +1267,9 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_defmodule(&mut self) -> Result<AST, ParseError> {
-        let token = self.next_token().map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
+        let token = self
+            .next_token()
+            .map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
         // token should be the module name (e.g., Foo)
         let name = match token.kind {
             TokenKind::Identifier => {
@@ -1257,18 +1309,28 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_def(&mut self, keyword: TokenKind) -> Result<AST, ParseError> {
-        let token = self.next_token().map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
-        let name_token = self.next_token().map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
+        let token = self
+            .next_token()
+            .map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
+        let name_token = self
+            .next_token()
+            .map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
         let name = match name_token.value {
             TokenValue::Identifier(s) => self.intern_atom(&s),
-            _ => return Err(ParseError::UnexpectedToken(name_token.kind, name_token.span)),
+            _ => {
+                return Err(ParseError::UnexpectedToken(
+                    name_token.kind,
+                    name_token.span,
+                ))
+            }
         };
 
         // Check for parentheses (function args)
         match self.peek_token() {
             Ok(t) => {
                 if t.kind == TokenKind::OpenParen {
-                    self.next_token().map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
+                    self.next_token()
+                        .map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
                     self.parse_call_args()?;
                 }
             }
@@ -1285,9 +1347,21 @@ impl<'a> Parser<'a> {
         };
 
         let def_kind = match keyword {
-            TokenKind::KeywordDef => AST::Def { name, meta: self.make_meta(&token.span), clauses: body_exprs },
-            TokenKind::KeywordDefp => AST::Defp { name, meta: self.make_meta(&token.span), clauses: body_exprs },
-            TokenKind::KeywordDefmacro => AST::Defmacro { name, meta: self.make_meta(&token.span), clauses: body_exprs },
+            TokenKind::KeywordDef => AST::Def {
+                name,
+                meta: self.make_meta(&token.span),
+                clauses: body_exprs,
+            },
+            TokenKind::KeywordDefp => AST::Defp {
+                name,
+                meta: self.make_meta(&token.span),
+                clauses: body_exprs,
+            },
+            TokenKind::KeywordDefmacro => AST::Defmacro {
+                name,
+                meta: self.make_meta(&token.span),
+                clauses: body_exprs,
+            },
             _ => return Err(ParseError::UnexpectedToken(keyword, token.span)),
         };
 
@@ -1300,7 +1374,9 @@ impl<'a> Parser<'a> {
     }
 
     fn expect_token(&mut self, kind: TokenKind) -> Result<(), ParseError> {
-        let token = self.next_token().map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
+        let token = self
+            .next_token()
+            .map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
         if token.kind != kind {
             return Err(ParseError::ExpectedToken(kind, token.kind, token.span));
         }
@@ -1573,14 +1649,12 @@ mod tests {
         let mut parser = Parser::new("if x do :ok end", SourceFileId::new(0));
         let result = parser.parse_expression_with_precedence(0);
         match result {
-            Ok(ast) => {
-                match ast {
-                    AST::Cond { clauses, .. } => {
-                        assert!(!clauses.is_empty(), "if should have at least one clause");
-                    }
-                    _ => panic!("Expected Cond, got: {:?}", ast),
+            Ok(ast) => match ast {
+                AST::Cond { clauses, .. } => {
+                    assert!(!clauses.is_empty(), "if should have at least one clause");
                 }
-            }
+                _ => panic!("Expected Cond, got: {:?}", ast),
+            },
             Err(e) => panic!("Error: {:?}", e),
         }
     }
@@ -1592,14 +1666,12 @@ mod tests {
         let result = parser.parse_expression_with_precedence(0);
         eprintln!("Result with else: {:?}", result);
         match result {
-            Ok(ast) => {
-                match ast {
-                    AST::Cond { clauses, .. } => {
-                        assert_eq!(clauses.len(), 2, "if/else should have 2 clauses");
-                    }
-                    _ => eprintln!("Expected Cond, got: {:?}", ast),
+            Ok(ast) => match ast {
+                AST::Cond { clauses, .. } => {
+                    assert_eq!(clauses.len(), 2, "if/else should have 2 clauses");
                 }
-            }
+                _ => eprintln!("Expected Cond, got: {:?}", ast),
+            },
             Err(e) => eprintln!("Error: {:?}", e),
         }
     }
@@ -1611,15 +1683,13 @@ mod tests {
         let result = parser.parse_expression_with_precedence(0);
         eprintln!("Result: {:?}", result);
         match result {
-            Ok(ast) => {
-                match ast {
-                    AST::Case { expr, clauses, .. } => {
-                        eprintln!("Case expr: {:?}", expr);
-                        eprintln!("Case clauses: {:?}", clauses);
-                    }
-                    _ => eprintln!("Expected Case, got: {:?}", ast),
+            Ok(ast) => match ast {
+                AST::Case { expr, clauses, .. } => {
+                    eprintln!("Case expr: {:?}", expr);
+                    eprintln!("Case clauses: {:?}", clauses);
                 }
-            }
+                _ => eprintln!("Expected Case, got: {:?}", ast),
+            },
             Err(e) => eprintln!("Error: {:?}", e),
         }
     }
@@ -1856,7 +1926,7 @@ mod tests {
     #[test]
     fn test_make_span_tracks_tokens() {
         // Verify make_span returns meaningful spans after token consumption
-        use chimera_source::{SourceFileId, SourceSpan, SourceOffset};
+        use chimera_source::{SourceFileId, SourceOffset, SourceSpan};
         let source = "foo bar";
         let mut parser = Parser::new(source, SourceFileId::new(0));
         // Consume "foo"

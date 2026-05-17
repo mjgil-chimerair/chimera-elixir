@@ -1,13 +1,11 @@
 #! Code generation for the Rust/Zig Elixir compiler.
- //!
- //! This module provides code generation from Core IR to target artifacts.
+//!
+//! This module provides code generation from Core IR to target artifacts.
 
 #[cfg(test)]
 use chimera_allocator as _;
 
-use chimera_core::{
-    CoreClause, CoreExpr, CoreFunction, CoreModule, CorePattern,
-};
+use chimera_core::{CoreClause, CoreExpr, CoreFunction, CoreModule, CorePattern};
 use chimera_term::{Atom, AtomTable, ModuleName};
 use std::collections::HashMap;
 
@@ -298,7 +296,9 @@ pub struct LiteralTable {
 impl LiteralTable {
     /// Create a new empty literal table
     pub fn new() -> Self {
-        LiteralTable { entries: Vec::new() }
+        LiteralTable {
+            entries: Vec::new(),
+        }
     }
 
     /// Add a float literal and return its index
@@ -653,7 +653,11 @@ impl Codegen {
                 }
                 Ok(code)
             }
-            CoreExpr::Match { pattern, value, body } => {
+            CoreExpr::Match {
+                pattern,
+                value,
+                body,
+            } => {
                 let mut code = Vec::new();
                 code.extend(self.generate_expr(value)?);
                 let match_code = self.generate_pattern_match(pattern, body)?;
@@ -737,7 +741,11 @@ impl Codegen {
     }
 
     /// Generate pattern matching code.
-    fn generate_pattern_match(&mut self, pattern: &CorePattern, body: &CoreExpr) -> Result<Vec<u8>, CodegenError> {
+    fn generate_pattern_match(
+        &mut self,
+        pattern: &CorePattern,
+        body: &CoreExpr,
+    ) -> Result<Vec<u8>, CodegenError> {
         let mut code = Vec::new();
         match pattern {
             CorePattern::Wildcard => {
@@ -797,7 +805,8 @@ impl Codegen {
 
         // Fallback: use ID directly and add a placeholder name
         while self.generated_atoms.len() <= idx {
-            self.generated_atoms.push(format!("atom_{}", self.generated_atoms.len()));
+            self.generated_atoms
+                .push(format!("atom_{}", self.generated_atoms.len()));
         }
         Ok(idx)
     }
@@ -825,7 +834,11 @@ pub fn emit_beam(output: &CodegenOutput) -> Result<Vec<u8>, CodegenError> {
     emit_beam_chunk(&mut beam, b"AtU8", emit_atoms_chunk(&output.atoms)?)?;
 
     // Export table chunk (mandatory) - use "ExpT" (standard BEAM format)
-    emit_beam_chunk(&mut beam, b"ExpT", emit_exports_chunk(&output.exports, &output.atoms)?)?;
+    emit_beam_chunk(
+        &mut beam,
+        b"ExpT",
+        emit_exports_chunk(&output.exports, &output.atoms)?,
+    )?;
 
     // Code chunk - use "Code" (standard BEAM format)
     let code_data = emit_code_chunk(&output.code);
@@ -839,7 +852,7 @@ pub fn emit_beam(output: &CodegenOutput) -> Result<Vec<u8>, CodegenError> {
     let lit_data = output.literals.encode();
     if !lit_data.is_empty() {
         emit_beam_chunk(&mut beam, b"LitT", lit_data)?;
-        }
+    }
     Ok(beam)
 }
 
@@ -860,15 +873,15 @@ fn emit_code_chunk(code: &[u8]) -> Vec<u8> {
     // - 36-39: function_count (uint32)
 
     chunk.extend_from_slice(&0x424F524Du32.to_be_bytes()); // "BOR M" magic
-    chunk.extend_from_slice(&1u32.to_be_bytes());           // version 1
-    chunk.extend_from_slice(&0u32.to_be_bytes());           // flags
+    chunk.extend_from_slice(&1u32.to_be_bytes()); // version 1
+    chunk.extend_from_slice(&0u32.to_be_bytes()); // flags
     chunk.extend_from_slice(&(code.len() as u32).to_be_bytes()); // code_size
-    chunk.extend_from_slice(&0u32.to_be_bytes());           // export_count (filled by caller)
-    chunk.extend_from_slice(&0u32.to_be_bytes());           // import_count
-    chunk.extend_from_slice(&0u32.to_be_bytes());           // local_count
-    chunk.extend_from_slice(&0u32.to_be_bytes());           // lambda_count
-    chunk.extend_from_slice(&0u32.to_be_bytes());           // code_label_count
-    chunk.extend_from_slice(&0u32.to_be_bytes());           // function_count
+    chunk.extend_from_slice(&0u32.to_be_bytes()); // export_count (filled by caller)
+    chunk.extend_from_slice(&0u32.to_be_bytes()); // import_count
+    chunk.extend_from_slice(&0u32.to_be_bytes()); // local_count
+    chunk.extend_from_slice(&0u32.to_be_bytes()); // lambda_count
+    chunk.extend_from_slice(&0u32.to_be_bytes()); // code_label_count
+    chunk.extend_from_slice(&0u32.to_be_bytes()); // function_count
 
     // Append actual code
     chunk.extend_from_slice(code);
@@ -876,7 +889,11 @@ fn emit_code_chunk(code: &[u8]) -> Vec<u8> {
     chunk
 }
 
-fn emit_beam_chunk(beam: &mut Vec<u8>, chunk_type: &[u8; 4], data: Vec<u8>) -> Result<(), CodegenError> {
+fn emit_beam_chunk(
+    beam: &mut Vec<u8>,
+    chunk_type: &[u8; 4],
+    data: Vec<u8>,
+) -> Result<(), CodegenError> {
     // Chunk header
     beam.extend_from_slice(chunk_type);
     let size = data.len() as u32;
@@ -918,8 +935,8 @@ fn emit_exports_chunk(exports: &[(Atom, u8)], _atoms: &[String]) -> Result<Vec<u
         // Atom id is the index into our interned atom table
         let atom_idx = name.0 as u32;
         chunk.extend_from_slice(&atom_idx.to_be_bytes()); // atom table index
-        chunk.push(*arity);                               // arity
-        chunk.extend_from_slice(&1u32.to_be_bytes());    // label (1 = first code label)
+        chunk.push(*arity); // arity
+        chunk.extend_from_slice(&1u32.to_be_bytes()); // label (1 = first code label)
     }
 
     Ok(chunk)
@@ -1149,7 +1166,7 @@ mod tests {
         let encoded = entry.encode();
         assert!(!encoded.is_empty());
         assert_eq!(encoded[0], 0x01); // integer tag
-        assert_eq!(encoded[1], 3);   // length
+        assert_eq!(encoded[1], 3); // length
     }
 
     #[test]
@@ -1158,7 +1175,7 @@ mod tests {
         let encoded = entry.encode();
         assert!(!encoded.is_empty());
         assert_eq!(encoded[0], 0x05); // tuple tag
-        assert_eq!(encoded[1], 3);   // arity
+        assert_eq!(encoded[1], 3); // arity
     }
 
     #[test]

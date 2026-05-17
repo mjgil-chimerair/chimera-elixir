@@ -7,7 +7,7 @@
 #[cfg(test)]
 use chimera_allocator as _;
 
-use chimera_ast::{AST, Meta};
+use chimera_ast::{Meta, AST};
 use chimera_term::{Atom, AtomTable, ModuleName};
 use std::collections::{HashMap, HashSet};
 
@@ -33,25 +33,52 @@ pub enum CoreExpr {
     /// Variable reference
     Var { name: Atom, arity: u8 },
     /// Function call
-    Call { module: Option<Atom>, name: Atom, args: Vec<CoreExpr> },
+    Call {
+        module: Option<Atom>,
+        name: Atom,
+        args: Vec<CoreExpr>,
+    },
     /// Lambda/anonymous function
-    Lambda { args: Vec<Atom>, body: Box<CoreExpr> },
+    Lambda {
+        args: Vec<Atom>,
+        body: Box<CoreExpr>,
+    },
     /// Local binding
-    Let { vars: Vec<Atom>, value: Box<CoreExpr>, body: Box<CoreExpr> },
+    Let {
+        vars: Vec<Atom>,
+        value: Box<CoreExpr>,
+        body: Box<CoreExpr>,
+    },
     /// Sequence of expressions
     Seq(Vec<CoreExpr>),
     /// Match expression
-    Match { pattern: CorePattern, value: Box<CoreExpr>, body: Box<CoreExpr> },
+    Match {
+        pattern: CorePattern,
+        value: Box<CoreExpr>,
+        body: Box<CoreExpr>,
+    },
     /// Case expression
-    Case { expr: Box<CoreExpr>, clauses: Vec<CoreClause> },
+    Case {
+        expr: Box<CoreExpr>,
+        clauses: Vec<CoreClause>,
+    },
     /// Try/catch expression
-    Try { expr: Box<CoreExpr>, clauses: Vec<CoreClause> },
+    Try {
+        expr: Box<CoreExpr>,
+        clauses: Vec<CoreClause>,
+    },
     /// Receive expression
-    Receive { clauses: Vec<CoreClause>, timeout: Option<(Box<CoreExpr>, Box<CoreExpr>)> },
+    Receive {
+        clauses: Vec<CoreClause>,
+        timeout: Option<(Box<CoreExpr>, Box<CoreExpr>)>,
+    },
     /// Tuple construction
     TupleCons { elements: Vec<CoreExpr> },
     /// Map update
-    MapUpdate { base: Box<CoreExpr>, updates: Vec<(CoreExpr, CoreExpr)> },
+    MapUpdate {
+        base: Box<CoreExpr>,
+        updates: Vec<(CoreExpr, CoreExpr)>,
+    },
     /// Binary construction
     Binary { segments: Vec<CoreBinarySegment> },
 }
@@ -79,13 +106,19 @@ pub enum CorePattern {
     /// String pattern
     String(String),
     /// List pattern [head | tail]
-    List { head: Option<Box<CorePattern>>, tail: Option<Box<CorePattern>> },
+    List {
+        head: Option<Box<CorePattern>>,
+        tail: Option<Box<CorePattern>>,
+    },
     /// Tuple pattern
     Tuple(Vec<CorePattern>),
     /// Map pattern
     Map(Vec<(CorePattern, CorePattern)>),
     /// Cons cell pattern [head | tail]
-    Cons { head: Box<CorePattern>, tail: Box<CorePattern> },
+    Cons {
+        head: Box<CorePattern>,
+        tail: Box<CorePattern>,
+    },
     /// Binary pattern
     Binary(Vec<CorePattern>),
 }
@@ -250,13 +283,13 @@ impl CoreBuilder {
             AST::Float(f) => Ok(CoreExpr::Float(f)),
             AST::String(s) => Ok(CoreExpr::String(s)),
             AST::List(items) => {
-                let core_items: Result<Vec<_>, _> = items.into_iter()
-                    .map(|item| self.from_ast(item))
-                    .collect();
+                let core_items: Result<Vec<_>, _> =
+                    items.into_iter().map(|item| self.from_ast(item)).collect();
                 Ok(CoreExpr::List(core_items?))
             }
             AST::Tuple(elements) => {
-                let core_elements: Result<Vec<_>, _> = elements.into_iter()
+                let core_elements: Result<Vec<_>, _> = elements
+                    .into_iter()
                     .map(|elem| self.from_ast(elem))
                     .collect();
                 Ok(CoreExpr::Tuple(core_elements?))
@@ -269,31 +302,32 @@ impl CoreBuilder {
                 }
             }
             AST::Call { name, args, .. } => {
-                let core_args: Result<Vec<_>, _> = args.into_iter()
-                    .map(|arg| self.from_ast(arg))
-                    .collect();
-                Ok(CoreExpr::Call { module: None, name, args: core_args? })
+                let core_args: Result<Vec<_>, _> =
+                    args.into_iter().map(|arg| self.from_ast(arg)).collect();
+                Ok(CoreExpr::Call {
+                    module: None,
+                    name,
+                    args: core_args?,
+                })
             }
             AST::Defmodule { name, body, .. } => {
                 // Extract module name
                 if let AST::Atom(atom) = *name {
                     self.module = Some(ModuleName::new(vec![atom]));
                 }
-                let core_body: Result<Vec<_>, _> = body.into_iter()
-                    .map(|form| self.from_ast(form))
-                    .collect();
+                let core_body: Result<Vec<_>, _> =
+                    body.into_iter().map(|form| self.from_ast(form)).collect();
                 Ok(CoreExpr::Seq(core_body?))
             }
-            AST::Def { name: _, clauses, .. } => {
+            AST::Def {
+                name: _, clauses, ..
+            } => {
                 // Convert function definition - just convert all clauses as a sequence
-                let core_clauses: Result<Vec<_>, _> = clauses.into_iter()
-                    .map(|c| self.from_ast(c))
-                    .collect();
+                let core_clauses: Result<Vec<_>, _> =
+                    clauses.into_iter().map(|c| self.from_ast(c)).collect();
                 Ok(CoreExpr::Seq(core_clauses?))
             }
-            AST::Quote { value, .. } => {
-                self.from_ast(*value)
-            }
+            AST::Quote { value, .. } => self.from_ast(*value),
             _ => Ok(CoreExpr::Unit),
         }
     }
@@ -340,7 +374,10 @@ pub fn validate_module(module: &CoreModule) -> Result<(), CoreError> {
     for func in &module.functions {
         let key = (func.name.clone(), func.arity);
         if seen.contains(&key) {
-            return Err(CoreError::DuplicateDefinition(format!("{:?}/{}", func.name, func.arity)));
+            return Err(CoreError::DuplicateDefinition(format!(
+                "{:?}/{}",
+                func.name, func.arity
+            )));
         }
         seen.insert(key);
     }
@@ -352,7 +389,9 @@ pub fn compile_module(ast: AST, atoms: AtomTable) -> Result<CoreModule, CoreErro
     let mut builder = CoreBuilder::new(atoms);
     let _expr = builder.from_ast(ast)?;
 
-    let module_name = builder.module.unwrap_or(ModuleName::new(vec![Atom::new(0)]));
+    let module_name = builder
+        .module
+        .unwrap_or(ModuleName::new(vec![Atom::new(0)]));
 
     Ok(CoreModule {
         name: module_name,

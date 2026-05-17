@@ -225,7 +225,10 @@ impl CustomLintRegistry {
 
     /// Register a custom lint rule from a plugin.
     pub fn register(&self, rule: CustomLintRule) -> Result<(), String> {
-        let mut rules = self.rules.write().map_err(|e| format!("lock poisoned: {}", e))?;
+        let mut rules = self
+            .rules
+            .write()
+            .map_err(|e| format!("lock poisoned: {}", e))?;
         rules.push(rule);
         Ok(())
     }
@@ -243,7 +246,12 @@ impl CustomLintRegistry {
     }
 
     /// Check source with all registered custom rules.
-    pub fn check_all(&self, source_id: u32, file_path: &str, source: &str) -> Vec<LintFindingSimple> {
+    pub fn check_all(
+        &self,
+        source_id: u32,
+        file_path: &str,
+        source: &str,
+    ) -> Vec<LintFindingSimple> {
         let rules = self.rules.read().unwrap();
         let mut findings = Vec::new();
         for rule in rules.iter() {
@@ -347,7 +355,13 @@ pub struct AstNodeSimple {
 }
 
 impl AstNodeSimple {
-    pub fn new(id: u64, kind: impl Into<String>, content: impl Into<String>, start: usize, end: usize) -> Self {
+    pub fn new(
+        id: u64,
+        kind: impl Into<String>,
+        content: impl Into<String>,
+        start: usize,
+        end: usize,
+    ) -> Self {
         Self {
             id,
             kind: kind.into(),
@@ -378,7 +392,10 @@ impl TransformPassRegistry {
 
     /// Register a transform pass from a plugin.
     pub fn register(&self, pass: TransformPass) -> Result<(), String> {
-        let mut passes = self.passes.write().map_err(|e| format!("lock poisoned: {}", e))?;
+        let mut passes = self
+            .passes
+            .write()
+            .map_err(|e| format!("lock poisoned: {}", e))?;
         passes.push(pass);
         Ok(())
     }
@@ -392,7 +409,11 @@ impl TransformPassRegistry {
     /// Get pass IDs for a specific phase (metadata only, no cloning of fn).
     pub fn get_pass_ids_for_phase(&self, phase: PluginPhase) -> Vec<String> {
         let passes = self.passes.read().unwrap();
-        passes.iter().filter(|p| p.phase == phase).map(|p| p.id.clone()).collect()
+        passes
+            .iter()
+            .filter(|p| p.phase == phase)
+            .map(|p| p.id.clone())
+            .collect()
     }
 
     /// Check if a pass with given ID exists.
@@ -412,7 +433,11 @@ impl TransformPassRegistry {
     }
 
     /// Execute all passes for a phase on a document.
-    pub fn execute_phase(&self, phase: PluginPhase, document: AstDocumentSimple) -> AstDocumentSimple {
+    pub fn execute_phase(
+        &self,
+        phase: PluginPhase,
+        document: AstDocumentSimple,
+    ) -> AstDocumentSimple {
         let passes = self.passes.read().unwrap();
         let mut result = document;
         for p in passes.iter() {
@@ -527,7 +552,10 @@ impl PluginManager {
 
     /// Register a plugin with the manager.
     pub fn register(&self, plugin: Arc<dyn Plugin>) -> Result<(), PluginError> {
-        let mut plugins = self.plugins.write().map_err(|_| PluginError::InitFailed("lock poisoned".into()))?;
+        let mut plugins = self
+            .plugins
+            .write()
+            .map_err(|_| PluginError::InitFailed("lock poisoned".into()))?;
         plugins.push(plugin);
         Ok(())
     }
@@ -556,7 +584,10 @@ impl PluginManager {
         let instance = plugin.create_instance()?;
         let wrapped: Arc<RwLock<Box<dyn PluginInstance>>> = Arc::new(RwLock::new(instance));
 
-        self.instances.write().unwrap().insert(name.into(), wrapped.clone());
+        self.instances
+            .write()
+            .unwrap()
+            .insert(name.into(), wrapped.clone());
         Ok(wrapped)
     }
 
@@ -578,15 +609,32 @@ impl PluginManager {
     }
 
     /// Execute plugins for a specific phase.
-    pub fn execute_phase(&self, phase: PluginPhase, ctx: &mut PluginContext) -> Result<(), PluginError> {
-        let plugins: Vec<Arc<dyn Plugin>> = self.plugins.read().unwrap().iter()
-            .filter(|p| p.metadata().lifecycle_phase == phase && !self.disabled.read().unwrap().contains_key(&p.metadata().name))
+    pub fn execute_phase(
+        &self,
+        phase: PluginPhase,
+        ctx: &mut PluginContext,
+    ) -> Result<(), PluginError> {
+        let plugins: Vec<Arc<dyn Plugin>> = self
+            .plugins
+            .read()
+            .unwrap()
+            .iter()
+            .filter(|p| {
+                p.metadata().lifecycle_phase == phase
+                    && !self
+                        .disabled
+                        .read()
+                        .unwrap()
+                        .contains_key(&p.metadata().name)
+            })
             .cloned()
             .collect();
 
         for plugin in plugins {
             let instance = self.load(&plugin.metadata().name)?;
-            let instance_lock = instance.write().map_err(|_| PluginError::ExecutionFailed("lock poisoned".into()))?;
+            let instance_lock = instance
+                .write()
+                .map_err(|_| PluginError::ExecutionFailed("lock poisoned".into()))?;
             let _ = instance_lock.execute(ctx);
         }
 
@@ -595,7 +643,12 @@ impl PluginManager {
 
     /// Get list of registered plugin names.
     pub fn plugin_names(&self) -> Vec<String> {
-        self.plugins.read().unwrap().iter().map(|p| p.metadata().name.clone()).collect()
+        self.plugins
+            .read()
+            .unwrap()
+            .iter()
+            .map(|p| p.metadata().name.clone())
+            .collect()
     }
 
     /// Get list of loaded plugin names.
@@ -676,7 +729,8 @@ impl PluginDiscovery {
     pub fn discover_from_env(&self) -> Vec<DiscoveredPlugin> {
         let mut plugins = Vec::new();
         for (key, value) in std::env::vars() {
-            if key.starts_with(&self.config.env_prefix) && key.len() > self.config.env_prefix.len() {
+            if key.starts_with(&self.config.env_prefix) && key.len() > self.config.env_prefix.len()
+            {
                 let name = key[self.config.env_prefix.len()..].to_lowercase();
                 // Environment variable contains path to plugin
                 let path = std::path::Path::new(&value);
@@ -710,11 +764,20 @@ impl PluginDiscovery {
             if line.starts_with("name = ") {
                 metadata.name = line.strip_prefix("name = ")?.trim_matches('"').to_string();
             } else if line.starts_with("version = ") {
-                metadata.version = line.strip_prefix("version = ")?.trim_matches('"').to_string();
+                metadata.version = line
+                    .strip_prefix("version = ")?
+                    .trim_matches('"')
+                    .to_string();
             } else if line.starts_with("author = ") {
-                metadata.author = line.strip_prefix("author = ")?.trim_matches('"').to_string();
+                metadata.author = line
+                    .strip_prefix("author = ")?
+                    .trim_matches('"')
+                    .to_string();
             } else if line.starts_with("description = ") {
-                metadata.description = line.strip_prefix("description = ")?.trim_matches('"').to_string();
+                metadata.description = line
+                    .strip_prefix("description = ")?
+                    .trim_matches('"')
+                    .to_string();
             }
         }
 
@@ -737,16 +800,35 @@ impl PluginDiscovery {
             path: path_str,
             metadata: PluginMetadata {
                 name,
-                version: json.get("version").and_then(|v| v.as_str()).unwrap_or("0.1.0").to_string(),
-                author: json.get("author").and_then(|v| v.as_str()).unwrap_or("unknown").to_string(),
-                description: json.get("description").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                version: json
+                    .get("version")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("0.1.0")
+                    .to_string(),
+                author: json
+                    .get("author")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("unknown")
+                    .to_string(),
+                description: json
+                    .get("description")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
                 lifecycle_phase: PluginPhase::AfterParser,
-                api_version: json.get("api_version").and_then(|v| v.as_u64()).unwrap_or(1) as u32,
+                api_version: json
+                    .get("api_version")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(1) as u32,
             },
         })
     }
 
-    fn discover_plugin_at_path(&self, name: &str, path: &std::path::Path) -> Option<DiscoveredPlugin> {
+    fn discover_plugin_at_path(
+        &self,
+        name: &str,
+        path: &std::path::Path,
+    ) -> Option<DiscoveredPlugin> {
         let metadata_path = path.join("chimera_plugin.toml");
         let json_path = path.join("plugin.json");
 
@@ -934,7 +1016,10 @@ impl HookSystem {
 
     /// Register a hook callback for a specific phase.
     pub fn register(&self, callback: HookCallback) -> Result<(), String> {
-        let mut hooks = self.hooks.write().map_err(|e| format!("lock poisoned: {}", e))?;
+        let mut hooks = self
+            .hooks
+            .write()
+            .map_err(|e| format!("lock poisoned: {}", e))?;
         hooks.entry(callback.phase).or_default().push(callback);
         Ok(())
     }
@@ -959,11 +1044,18 @@ impl HookSystem {
     }
 
     /// Execute all hooks for a phase and abort on first failure if configured.
-    pub fn execute_phase_strict(&self, phase: HookPhase, ctx: &HookContext) -> Result<Vec<HookResult>, String> {
+    pub fn execute_phase_strict(
+        &self,
+        phase: HookPhase,
+        ctx: &HookContext,
+    ) -> Result<Vec<HookResult>, String> {
         let results = self.execute_phase(phase, ctx);
         for result in &results {
             if !result.success && result.abort {
-                return Err(result.error_message.clone().unwrap_or_else(|| "hook aborted".into()));
+                return Err(result
+                    .error_message
+                    .clone()
+                    .unwrap_or_else(|| "hook aborted".into()));
             }
         }
         Ok(results)
@@ -1033,7 +1125,10 @@ mod tests {
     #[test]
     fn test_plugin_config_with_dirs() {
         let config = PluginConfig {
-            plugin_dirs: vec!["~/.rzx/plugins".to_string(), "/usr/local/lib/rzx/plugins".to_string()],
+            plugin_dirs: vec![
+                "~/.rzx/plugins".to_string(),
+                "/usr/local/lib/rzx/plugins".to_string(),
+            ],
             env_prefix: "RZ_".to_string(),
         };
         assert_eq!(config.plugin_dirs.len(), 2);
@@ -1044,8 +1139,14 @@ mod tests {
     fn test_hook_phase_as_str() {
         assert_eq!(HookPhase::BeforeCompile.as_str(), "before_compile");
         assert_eq!(HookPhase::AfterCompile.as_str(), "after_compile");
-        assert_eq!(HookPhase::BeforeModuleCompile.as_str(), "before_module_compile");
-        assert_eq!(HookPhase::AfterModuleCompile.as_str(), "after_module_compile");
+        assert_eq!(
+            HookPhase::BeforeModuleCompile.as_str(),
+            "before_module_compile"
+        );
+        assert_eq!(
+            HookPhase::AfterModuleCompile.as_str(),
+            "after_module_compile"
+        );
     }
 
     #[test]
@@ -1192,9 +1293,7 @@ mod tests {
             "A test rule",
             "best_practice",
             Severity::Warning,
-            |_source_id, _file_path, _source| {
-                vec![LintFindingSimple::new("Found issue", 1, 0, 0)]
-            },
+            |_source_id, _file_path, _source| vec![LintFindingSimple::new("Found issue", 1, 0, 0)],
         );
         let findings = rule.check(1, "test.ex", "source");
         assert_eq!(findings.len(), 1);
@@ -1509,8 +1608,8 @@ mod tests {
 
     #[test]
     fn test_ast_node_simple_with_children() {
-        let node = AstNodeSimple::new(1, "module", "defmodule Foo", 0, 14)
-            .with_children(vec![2, 3, 4]);
+        let node =
+            AstNodeSimple::new(1, "module", "defmodule Foo", 0, 14).with_children(vec![2, 3, 4]);
         assert_eq!(node.children.len(), 3);
     }
 }

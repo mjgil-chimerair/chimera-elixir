@@ -1,6 +1,6 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use chimera_lexer::{Lexer, LexerOptions};
 use chimera_source::SourceFileId;
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
 /// Create a complex Elixir source for lexing benchmark
 fn create_complex_source() -> String {
@@ -45,13 +45,14 @@ defmodule Benchmark do
     end
   end
 end
-"#.to_string()
+"#
+    .to_string()
 }
 
 fn bench_lexer(c: &mut Criterion) {
     let mut group = c.benchmark_group("lexer");
     group.sample_size(100);
-    
+
     group.bench_function("lex_complex_source", |b| {
         let source = create_complex_source();
         b.iter(|| {
@@ -60,7 +61,7 @@ fn bench_lexer(c: &mut Criterion) {
             black_box(tokens.len());
         });
     });
-    
+
     group.finish();
 }
 

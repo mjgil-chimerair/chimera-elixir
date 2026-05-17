@@ -6,8 +6,8 @@
 #[cfg(test)]
 use chimera_allocator as _;
 
-use std::collections::HashMap;
 use chimera_plugin_api::{PluginMetadata, PluginPhase};
+use std::collections::HashMap;
 
 /// Unique identifier for AST nodes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -285,7 +285,12 @@ impl AstDocument {
     }
 
     /// Insert a new child node at a specific position.
-    pub fn insert_child_at(&mut self, parent_id: AstNodeId, position: usize, mut child: AstNode) -> Option<AstNodeId> {
+    pub fn insert_child_at(
+        &mut self,
+        parent_id: AstNodeId,
+        position: usize,
+        mut child: AstNode,
+    ) -> Option<AstNodeId> {
         let pos = {
             let parent = self.nodes.get_mut(&parent_id)?;
             position.min(parent.children.len())
@@ -311,7 +316,10 @@ impl AstDocument {
     /// Get all node IDs in document order.
     #[allow(dead_code)]
     pub fn node_ids(&self) -> Vec<AstNodeId> {
-        (0..self.next_id).map(AstNodeId::new).filter(|id| self.nodes.contains_key(id)).collect()
+        (0..self.next_id)
+            .map(AstNodeId::new)
+            .filter(|id| self.nodes.contains_key(id))
+            .collect()
     }
 
     /// Update the span of a node and all descendants.
@@ -326,11 +334,7 @@ impl AstDocument {
         };
 
         for child_id in children_ids {
-            let child_span = SourceSpan::new(
-                0, 0,
-                span.start_line,
-                span.start_column
-            );
+            let child_span = SourceSpan::new(0, 0, span.start_line, span.start_column);
             self.update_span(child_id, child_span);
         }
     }
@@ -545,9 +549,16 @@ impl TransformFinder {
         matches
     }
 
-    fn find_in(&self, document: &AstDocument, id: Option<AstNodeId>, matches: &mut Vec<TransformMatch>) {
+    fn find_in(
+        &self,
+        document: &AstDocument,
+        id: Option<AstNodeId>,
+        matches: &mut Vec<TransformMatch>,
+    ) {
         let Some(node_id) = id else { return };
-        let Some(node) = document.get(node_id) else { return };
+        let Some(node) = document.get(node_id) else {
+            return;
+        };
 
         for pattern in &self.patterns {
             if pattern.matches(document, node_id) {
@@ -599,13 +610,18 @@ impl FindPattern {
         self
     }
 
-    pub fn with_predicate(mut self, pred: impl Fn(&AstDocument, AstNodeId) -> bool + 'static + Send + Sync) -> Self {
+    pub fn with_predicate(
+        mut self,
+        pred: impl Fn(&AstDocument, AstNodeId) -> bool + 'static + Send + Sync,
+    ) -> Self {
         self.predicate = Some(Box::new(pred));
         self
     }
 
     pub fn matches(&self, document: &AstDocument, id: AstNodeId) -> bool {
-        let Some(node) = document.get(id) else { return false };
+        let Some(node) = document.get(id) else {
+            return false;
+        };
 
         if let Some(kind) = &self.kind {
             if &node.kind != kind {
@@ -653,8 +669,17 @@ impl GoldenTestHarness {
         self.fixtures.insert(name.into(), fixture);
     }
 
-    pub fn run_test(&self, name: &str, transformer: &mut AstTransformer, input_doc: AstDocument, _expected_doc: AstDocument) -> Result<GoldenTestResult, String> {
-        let fixture = self.fixtures.get(name).ok_or_else(|| format!("fixture not found: {}", name))?;
+    pub fn run_test(
+        &self,
+        name: &str,
+        transformer: &mut AstTransformer,
+        input_doc: AstDocument,
+        _expected_doc: AstDocument,
+    ) -> Result<GoldenTestResult, String> {
+        let fixture = self
+            .fixtures
+            .get(name)
+            .ok_or_else(|| format!("fixture not found: {}", name))?;
 
         let document = input_doc;
         let original_span = document.get(fixture.input_root).map(|n| n.span.clone());
@@ -674,7 +699,11 @@ impl GoldenTestHarness {
             expected_root,
             actual_root,
             span_preserved: original_span.is_some(),
-            errors: if passed { vec![] } else { vec!["output mismatch".to_string()] },
+            errors: if passed {
+                vec![]
+            } else {
+                vec!["output mismatch".to_string()]
+            },
         })
     }
 
@@ -749,9 +778,11 @@ impl TransformPlugin {
     }
 }
 
-
 impl chimera_plugin_api::Plugin for TransformPlugin {
-    fn init(&self, _config: &[u8]) -> Result<Box<dyn chimera_plugin_api::PluginInstance>, chimera_plugin_api::PluginError> {
+    fn init(
+        &self,
+        _config: &[u8],
+    ) -> Result<Box<dyn chimera_plugin_api::PluginInstance>, chimera_plugin_api::PluginError> {
         Ok(Box::new(TransformPluginInstance {
             transformer: Box::new(AstTransformer::new()),
             metadata: self.metadata.clone(),
@@ -762,7 +793,9 @@ impl chimera_plugin_api::Plugin for TransformPlugin {
         &self.metadata
     }
 
-    fn create_instance(&self) -> Result<Box<dyn chimera_plugin_api::PluginInstance>, chimera_plugin_api::PluginError> {
+    fn create_instance(
+        &self,
+    ) -> Result<Box<dyn chimera_plugin_api::PluginInstance>, chimera_plugin_api::PluginError> {
         Self::init(self, &[])
     }
 }
@@ -774,7 +807,10 @@ pub struct TransformPluginInstance {
 }
 
 impl chimera_plugin_api::PluginInstance for TransformPluginInstance {
-    fn execute(&self, _ctx: &mut chimera_plugin_api::PluginContext) -> chimera_plugin_api::PluginResult {
+    fn execute(
+        &self,
+        _ctx: &mut chimera_plugin_api::PluginContext,
+    ) -> chimera_plugin_api::PluginResult {
         // In a full implementation, this would receive an AST document to transform
         chimera_plugin_api::PluginResult::success()
     }
@@ -793,13 +829,17 @@ mod tests {
 
         // Create a simple module node
         let module_span = SourceSpan::new(0, 20, 1, 1);
-        let module_id = doc.insert(AstNode::new(AstNodeId::none(), AstKind::Module, module_span)
-            .with_content("defmodule Foo"));
+        let module_id = doc.insert(
+            AstNode::new(AstNodeId::none(), AstKind::Module, module_span)
+                .with_content("defmodule Foo"),
+        );
 
         // Create a function node as child
         let func_span = SourceSpan::new(0, 20, 1, 1);
-        let func_id = doc.insert(AstNode::new(AstNodeId::none(), AstKind::FunctionDef, func_span)
-            .with_content("def foo"));
+        let func_id = doc.insert(
+            AstNode::new(AstNodeId::none(), AstKind::FunctionDef, func_span)
+                .with_content("def foo"),
+        );
         if let Some(parent) = doc.get_mut(module_id) {
             parent.add_child(func_id);
         }
@@ -951,8 +991,8 @@ mod tests {
         let root_id = doc.root().unwrap();
 
         let child_span = SourceSpan::new(0, 10, 1, 1);
-        let child = AstNode::new(AstNodeId::none(), AstKind::Variable, child_span)
-            .with_content("x");
+        let child =
+            AstNode::new(AstNodeId::none(), AstKind::Variable, child_span).with_content("x");
 
         let child_id = doc.insert_child_at(root_id, 0, child).unwrap();
         let parent = doc.get(root_id).unwrap();

@@ -65,19 +65,24 @@ pub struct OracleHarness {
 
 impl OracleHarness {
     pub fn new() -> Self {
-        let elixir_path = std::env::var("ELIXIR_PATH").ok()
-            .or_else(|| std::env::var("PATH").ok().and_then(|path| {
+        let elixir_path = std::env::var("ELIXIR_PATH").ok().or_else(|| {
+            std::env::var("PATH").ok().and_then(|path| {
                 std::env::split_paths(&path)
                     .filter_map(|p| {
                         let iex = p.join("iex");
-                        if iex.exists() { Some(p.to_string_lossy().to_string()) } else { None }
+                        if iex.exists() {
+                            Some(p.to_string_lossy().to_string())
+                        } else {
+                            None
+                        }
                     })
                     .next()
-            }));
-
-        let elixir_version = elixir_path.as_ref().and_then(|path| {
-            Self::get_elixir_version(path).ok()
+            })
         });
+
+        let elixir_version = elixir_path
+            .as_ref()
+            .and_then(|path| Self::get_elixir_version(path).ok());
 
         OracleHarness {
             elixir_path,
@@ -95,12 +100,20 @@ impl OracleHarness {
         let version_line = version_str.lines().next().unwrap_or("");
 
         // Parse "Elixir 1.19.5" format
-        let version = version_line.strip_prefix("Elixir ").unwrap_or("").trim().to_string();
+        let version = version_line
+            .strip_prefix("Elixir ")
+            .unwrap_or("")
+            .trim()
+            .to_string();
         let parts: Vec<&str> = version.split('.').collect();
         let major = parts.get(0).and_then(|s| s.parse().ok()).unwrap_or(0);
         let minor = parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(0);
 
-        Ok(ElixirVersion { version, major, minor })
+        Ok(ElixirVersion {
+            version,
+            major,
+            minor,
+        })
     }
 
     /// Check if Elixir is available for comparison.
@@ -114,7 +127,9 @@ impl OracleHarness {
     }
 
     fn run_elixir_script(&self, script: &str) -> Result<String, String> {
-        let elixir_path = self.elixir_path.as_ref()
+        let elixir_path = self
+            .elixir_path
+            .as_ref()
             .ok_or_else(|| "Elixir path not set".to_string())?;
 
         let output = std::process::Command::new("elixir")
@@ -159,7 +174,7 @@ impl OracleHarness {
                 actual: String::new(),
                 diff: None,
                 error: Some(e),
-            }
+            },
         }
     }
 
@@ -190,7 +205,7 @@ impl OracleHarness {
                 actual: String::new(),
                 diff: None,
                 error: Some(e),
-            }
+            },
         }
     }
 
@@ -205,22 +220,17 @@ impl OracleHarness {
             .replace("\"", "\\\"")
             .replace("\n", "\\n");
 
-        let script = format!(
-            "result = {}\nIO.puts(Kernel.inspect(result))",
-            source
-        );
+        let script = format!("result = {}\nIO.puts(Kernel.inspect(result))", source);
 
         match self.run_elixir_script(&script) {
-            Ok(elixir_result) => {
-                OracleResult::compare(source, &elixir_result)
-            }
+            Ok(elixir_result) => OracleResult::compare(source, &elixir_result),
             Err(e) => OracleResult {
                 passed: false,
                 expected: source.to_string(),
                 actual: String::new(),
                 diff: None,
                 error: Some(e),
-            }
+            },
         }
     }
 }

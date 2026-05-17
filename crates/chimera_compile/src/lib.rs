@@ -159,7 +159,8 @@ impl Compiler {
 
         // Stage 1: Load source into source map
         self.stage = Stage::Source;
-        self.source_map.add_file(input.file_path.as_str(), input.source.as_str());
+        self.source_map
+            .add_file(input.file_path.as_str(), input.source.as_str());
 
         // Stage 2: Lexing
         self.stage = Stage::Lexing;
@@ -188,7 +189,10 @@ impl Compiler {
         let ast = match parser.parse_source() {
             Ok(ast) => ast,
             Err(e) => {
-                return Err(CompileError::new(Stage::Parsing, format!("parse error: {:?}", e)));
+                return Err(CompileError::new(
+                    Stage::Parsing,
+                    format!("parse error: {:?}", e),
+                ));
             }
         };
 
@@ -205,15 +209,16 @@ impl Compiler {
         // Stage 6: Macro expansion
         self.stage = Stage::Expand;
         let mut expander = chimera_expand::Expander::new(chimera_expand::MacroEnv::new(file_id));
-        let expanded_ast: Vec<AST> = ast.into_iter().filter_map(|node| {
-            match expander.expand(node) {
+        let expanded_ast: Vec<AST> = ast
+            .into_iter()
+            .filter_map(|node| match expander.expand(node) {
                 Ok(expanded) => Some(expanded),
                 Err(e) => {
                     diags.add(Diagnostic::error(format!("expand error: {:?}", e)));
                     None
                 }
-            }
-        }).collect();
+            })
+            .collect();
 
         // Stage 7: Module building - placeholder for now
         self.stage = Stage::ModuleBuild;
@@ -231,7 +236,10 @@ impl Compiler {
     }
 
     /// Compile multiple inputs.
-    pub fn compile_batch(&mut self, inputs: Vec<CompileInput>) -> CompileResult<Vec<CompileOutput>> {
+    pub fn compile_batch(
+        &mut self,
+        inputs: Vec<CompileInput>,
+    ) -> CompileResult<Vec<CompileOutput>> {
         let mut outputs = Vec::new();
         for input in inputs {
             match self.compile(input) {
@@ -245,8 +253,14 @@ impl Compiler {
     /// Compile multiple inputs with error resilience.
     /// Continues compiling even if some files have errors.
     /// Returns results for each input, with errors recorded in diagnostics.
-    pub fn compile_batch_resilient(&mut self, inputs: Vec<CompileInput>) -> Vec<CompileResult<CompileOutput>> {
-        inputs.into_iter().map(|input| self.compile(input)).collect()
+    pub fn compile_batch_resilient(
+        &mut self,
+        inputs: Vec<CompileInput>,
+    ) -> Vec<CompileResult<CompileOutput>> {
+        inputs
+            .into_iter()
+            .map(|input| self.compile(input))
+            .collect()
     }
 
     /// Check a source file (parse, validate, no codegen).
@@ -321,12 +335,19 @@ mod tests {
         let source = "defmodule MyModule do\n  :world\nend";
         let input = CompileInput::new(source, "my_module.ex");
         let result = compiler.compile(input);
-        assert!(result.is_ok(), "compilation should succeed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "compilation should succeed: {:?}",
+            result.err()
+        );
         let output = result.unwrap();
         // Should have parsed the defmodule and functions
         assert!(!output.ast.is_empty(), "AST should not be empty");
         // Verify source map has the file
-        assert!(compiler.source_map().get_file(SourceFileId::new(0)).is_some());
+        assert!(compiler
+            .source_map()
+            .get_file(SourceFileId::new(0))
+            .is_some());
     }
 
     #[test]
@@ -381,11 +402,10 @@ mod tests {
 
     #[test]
     fn test_compile_error_with_span() {
-        let error = CompileError::new(Stage::Parsing, "test error")
-            .with_span(SourceSpan::new(
-                chimera_source::SourceOffset::new(0),
-                chimera_source::SourceOffset::new(5),
-            ));
+        let error = CompileError::new(Stage::Parsing, "test error").with_span(SourceSpan::new(
+            chimera_source::SourceOffset::new(0),
+            chimera_source::SourceOffset::new(5),
+        ));
         assert!(error.span.is_some());
     }
 

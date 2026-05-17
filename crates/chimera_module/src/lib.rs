@@ -10,10 +10,10 @@
 #[cfg(test)]
 use chimera_allocator as _;
 
-use chimera_ast::{AST, Meta};
+use chimera_ast::{Meta, AST};
 use chimera_parser::Parser;
 use chimera_source::SourceFileId;
-use chimera_term::{Atom, SharedAtomTable, ModuleName};
+use chimera_term::{Atom, ModuleName, SharedAtomTable};
 use std::collections::HashMap;
 
 /// Module builder for constructing module definitions.
@@ -180,7 +180,11 @@ impl ModuleBuilder {
         }
 
         // Use first segment of module name as the atom
-        let name_atom = module_name.segments().first().cloned().unwrap_or(Atom::new(0));
+        let name_atom = module_name
+            .segments()
+            .first()
+            .cloned()
+            .unwrap_or(Atom::new(0));
         AST::Defmodule {
             name: Box::new(AST::Atom(name_atom)),
             body,
@@ -190,7 +194,11 @@ impl ModuleBuilder {
 
     /// Compile a module from source code.
     #[allow(dead_code)]
-    pub fn compile_source(&mut self, source: &'static str, file_id: SourceFileId) -> Result<AST, ModuleError> {
+    pub fn compile_source(
+        &mut self,
+        source: &'static str,
+        file_id: SourceFileId,
+    ) -> Result<AST, ModuleError> {
         let mut parser = Parser::new(source, file_id);
         let asts = parser.parse_source()?;
 
@@ -202,7 +210,12 @@ impl ModuleBuilder {
     #[allow(dead_code)]
     fn process_module_forms(&mut self, asts: Vec<AST>) -> Result<AST, ModuleError> {
         for ast in asts {
-            if let AST::Defmodule { name, body, meta: _ } = ast {
+            if let AST::Defmodule {
+                name,
+                body,
+                meta: _,
+            } = ast
+            {
                 // Extract module name
                 if let AST::Atom(atom) = *name {
                     self.module_name = Some(ModuleName::new(vec![atom]));
@@ -280,7 +293,11 @@ impl ModuleBuilder {
         }
 
         // Use first segment of module name as the atom
-        let name_atom = module_name.segments().first().cloned().unwrap_or(Atom::new(0));
+        let name_atom = module_name
+            .segments()
+            .first()
+            .cloned()
+            .unwrap_or(Atom::new(0));
         AST::Defmodule {
             name: Box::new(AST::Atom(name_atom)),
             body,
@@ -292,7 +309,12 @@ impl ModuleBuilder {
     #[allow(dead_code)]
     fn process_form(&mut self, form: AST) -> Result<(), ModuleError> {
         match form {
-            AST::Def { name, clauses, meta, .. } => {
+            AST::Def {
+                name,
+                clauses,
+                meta,
+                ..
+            } => {
                 let func = FunctionDef {
                     name,
                     public: true,
@@ -301,7 +323,12 @@ impl ModuleBuilder {
                 };
                 self.add_function(func);
             }
-            AST::Defp { name, clauses, meta, .. } => {
+            AST::Defp {
+                name,
+                clauses,
+                meta,
+                ..
+            } => {
                 let func = FunctionDef {
                     name,
                     public: false,
@@ -310,7 +337,12 @@ impl ModuleBuilder {
                 };
                 self.add_function(func);
             }
-            AST::Defmacro { name, clauses, meta, .. } => {
+            AST::Defmacro {
+                name,
+                clauses,
+                meta,
+                ..
+            } => {
                 let macro_def = MacroDef {
                     name,
                     public: true,
@@ -319,7 +351,12 @@ impl ModuleBuilder {
                 };
                 self.add_macro(macro_def);
             }
-            AST::Defmacrop { name, clauses, meta, .. } => {
+            AST::Defmacrop {
+                name,
+                clauses,
+                meta,
+                ..
+            } => {
                 let macro_def = MacroDef {
                     name,
                     public: false,
@@ -391,7 +428,12 @@ impl Module {
         }
 
         // Use first segment of module name as the atom
-        let name_atom = self.name.segments().first().cloned().unwrap_or(Atom::new(0));
+        let name_atom = self
+            .name
+            .segments()
+            .first()
+            .cloned()
+            .unwrap_or(Atom::new(0));
         AST::Defmodule {
             name: Box::new(AST::Atom(name_atom)),
             body,
@@ -421,7 +463,9 @@ impl std::fmt::Display for ModuleError {
             ModuleError::Parse(s) => write!(f, "Parse error: {}", s),
             ModuleError::Expand(s) => write!(f, "Expand error: {}", s),
             ModuleError::InvalidModuleName => write!(f, "Invalid module name"),
-            ModuleError::MissingAttribute(atom) => write!(f, "Missing required attribute: {:?}", atom),
+            ModuleError::MissingAttribute(atom) => {
+                write!(f, "Missing required attribute: {:?}", atom)
+            }
             ModuleError::DuplicateDefinition(name) => write!(f, "Duplicate definition: {}", name),
         }
     }

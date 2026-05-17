@@ -8,8 +8,8 @@
 #[cfg(test)]
 use chimera_allocator as _;
 
-use std::collections::HashMap;
 use chimera_plugin_api::{PluginMetadata, PluginPhase};
+use std::collections::HashMap;
 
 /// WebAssembly target types.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -371,7 +371,10 @@ pub struct WasmMemArg {
 
 impl Default for WasmMemArg {
     fn default() -> Self {
-        Self { align: 0, offset: 0 }
+        Self {
+            align: 0,
+            offset: 0,
+        }
     }
 }
 
@@ -566,12 +569,24 @@ impl WasmModule {
 
     /// Export a function.
     pub fn export_func(&mut self, name: &str, func_index: u32) {
-        self.exports.insert(name.to_string(), WasmExportDesc { kind: 0, index: func_index });
+        self.exports.insert(
+            name.to_string(),
+            WasmExportDesc {
+                kind: 0,
+                index: func_index,
+            },
+        );
     }
 
     /// Export memory.
     pub fn export_mem(&mut self, name: &str, mem_index: u32) {
-        self.exports.insert(name.to_string(), WasmExportDesc { kind: 2, index: mem_index });
+        self.exports.insert(
+            name.to_string(),
+            WasmExportDesc {
+                kind: 2,
+                index: mem_index,
+            },
+        );
     }
 
     /// Encode the module to WebAssembly binary format.
@@ -763,11 +778,17 @@ impl WasmModule {
             wat.push_str(&format!("  (type (;{};) ", i));
             wat.push_str("(func");
             if !params.is_empty() {
-                let params_str: Vec<String> = params.iter().map(|p| format!("(param {})", p.as_wat())).collect();
+                let params_str: Vec<String> = params
+                    .iter()
+                    .map(|p| format!("(param {})", p.as_wat()))
+                    .collect();
                 wat.push_str(&params_str.join(" "));
             }
             if !results.is_empty() {
-                let results_str: Vec<String> = results.iter().map(|r| format!("(result {})", r.as_wat())).collect();
+                let results_str: Vec<String> = results
+                    .iter()
+                    .map(|r| format!("(result {})", r.as_wat()))
+                    .collect();
                 wat.push_str(&results_str.join(""));
             }
             wat.push_str(")\n");
@@ -832,10 +853,16 @@ impl WasmModule {
             WasmInstruction::MemorySize => "memory.size".to_string(),
             WasmInstruction::MemoryGrow => "memory.grow".to_string(),
             WasmInstruction::I32Load(mem_arg) => {
-                format!("(i32.load offset={} align={})", mem_arg.offset, mem_arg.align)
+                format!(
+                    "(i32.load offset={} align={})",
+                    mem_arg.offset, mem_arg.align
+                )
             }
             WasmInstruction::I32Store(mem_arg) => {
-                format!("(i32.store offset={} align={})", mem_arg.offset, mem_arg.align)
+                format!(
+                    "(i32.store offset={} align={})",
+                    mem_arg.offset, mem_arg.align
+                )
             }
             WasmInstruction::RefNull => "ref.null".to_string(),
             WasmInstruction::RefIsNull => "ref.is_null".to_string(),
@@ -1276,7 +1303,10 @@ mod tests {
 
     #[test]
     fn test_wasm_target_str() {
-        assert_eq!(WasmTarget::Wasm32UnknownUnknown.as_str(), "wasm32-unknown-unknown");
+        assert_eq!(
+            WasmTarget::Wasm32UnknownUnknown.as_str(),
+            "wasm32-unknown-unknown"
+        );
         assert_eq!(WasmTarget::WasiPreview1.as_str(), "wasm32-wasi-preview1");
         assert_eq!(WasmTarget::Browser.as_str(), "wasm32-unknown-unknown");
     }
@@ -1433,8 +1463,7 @@ mod tests {
     fn test_wasi_context_with_env_vars() {
         let mut env = HashMap::new();
         env.insert("HOME".to_string(), "/home/user".to_string());
-        let ctx = WasiContext::new(WasiVersion::Preview1)
-            .with_env_vars(env);
+        let ctx = WasiContext::new(WasiVersion::Preview1).with_env_vars(env);
         assert_eq!(ctx.get_env("HOME"), Some("/home/user"));
         assert_eq!(ctx.get_env("PATH"), None);
     }
@@ -1581,7 +1610,9 @@ pub fn validate_wasm(wasm_bytes: &[u8]) -> WasmValidationResult {
 
         // Read section size
         if offset >= wasm_bytes.len() {
-            result.sections_valid.push((format!("section_{}", section_id), false));
+            result
+                .sections_valid
+                .push((format!("section_{}", section_id), false));
             result.valid = false;
             break;
         }
@@ -1589,7 +1620,9 @@ pub fn validate_wasm(wasm_bytes: &[u8]) -> WasmValidationResult {
         let (size, bytes_read) = decode_uleb128(&wasm_bytes[offset..]);
         offset += bytes_read;
 
-        result.sections_valid.push((format!("section_{}", section_id), true));
+        result
+            .sections_valid
+            .push((format!("section_{}", section_id), true));
 
         // Skip section content
         offset += size as usize;
@@ -1628,7 +1661,9 @@ pub fn test_wasm_round_trip(module: &WasmModule) -> Result<(), String> {
     // Basic validation that encoded bytes are valid WASM
     let validation = validate_wasm(&encoded);
     if !validation.valid {
-        return Err(validation.error_message.unwrap_or_else(|| "Invalid WASM".to_string()));
+        return Err(validation
+            .error_message
+            .unwrap_or_else(|| "Invalid WASM".to_string()));
     }
 
     // Verify we can decode the magic and version at least
@@ -1694,7 +1729,8 @@ impl WasmModule {
             return Err("Invalid WASM magic number".to_string());
         }
 
-        let version = u32::from_le_bytes([wasm_bytes[4], wasm_bytes[5], wasm_bytes[6], wasm_bytes[7]]);
+        let version =
+            u32::from_le_bytes([wasm_bytes[4], wasm_bytes[5], wasm_bytes[6], wasm_bytes[7]]);
         if version != 1 && version != 2 {
             return Err(format!("Unsupported WASM version: {}", version));
         }
@@ -1788,8 +1824,8 @@ mod wasm_testing_tests {
     #[test]
     fn test_run_wasm_module_missing_export() {
         let module = create_wasi_command();
-        let config = WasmTestConfig::default()
-            .with_expected_exports(vec!["nonexistent".to_string()]);
+        let config =
+            WasmTestConfig::default().with_expected_exports(vec!["nonexistent".to_string()]);
         let result = run_wasm_module(&module, &config);
         assert!(result.error.is_some());
         assert!(result.error.unwrap().contains("nonexistent"));

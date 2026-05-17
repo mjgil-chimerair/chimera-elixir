@@ -1,6 +1,6 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use chimera_ast::{AST, to_term};
+use chimera_ast::{to_term, AST};
 use chimera_term::AtomTable;
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
 fn create_complex_ast() -> AST {
     // Create a moderately complex AST for benchmarking
@@ -34,7 +34,7 @@ fn create_complex_ast() -> AST {
 fn bench_ast_to_term(c: &mut Criterion) {
     let mut group = c.benchmark_group("ast_to_term");
     group.sample_size(100);
-    
+
     group.bench_function("complex_ast", |b| {
         let ast = create_complex_ast();
         b.iter(|| {
@@ -42,7 +42,7 @@ fn bench_ast_to_term(c: &mut Criterion) {
             black_box(to_term(black_box(&ast), black_box(&mut atoms)));
         });
     });
-    
+
     group.finish();
 }
 

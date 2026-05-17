@@ -172,7 +172,9 @@ impl ModuleGraph {
 
         for module in self.modules.keys() {
             if !visited.contains(module) {
-                if let Some(cycle) = self.find_cycle_from(module, &mut visited, &mut in_stack, &mut stack) {
+                if let Some(cycle) =
+                    self.find_cycle_from(module, &mut visited, &mut in_stack, &mut stack)
+                {
                     return Some(cycle);
                 }
             }
@@ -285,7 +287,9 @@ impl ModuleGraph {
 
         if result.len() != self.modules.len() {
             // Cycle detected - find the cycle
-            let remaining: Vec<Atom> = self.modules.keys()
+            let remaining: Vec<Atom> = self
+                .modules
+                .keys()
                 .filter(|m| !result.contains(m))
                 .cloned()
                 .collect();
@@ -356,14 +360,9 @@ impl FunctionRef {
 #[derive(Debug, Clone)]
 pub enum FunctionResolution {
     /// Function found and resolved
-    Resolved {
-        module: Atom,
-        file_id: SourceFileId,
-    },
+    Resolved { module: Atom, file_id: SourceFileId },
     /// Function not found in any known module
-    NotFound {
-        tried_modules: Vec<Atom>,
-    },
+    NotFound { tried_modules: Vec<Atom> },
     /// Function exists but arity doesn't match
     ArityMismatch {
         module: Atom,
@@ -371,9 +370,7 @@ pub enum FunctionResolution {
         requested_arity: u8,
     },
     /// Function is local to a module but called remotely from different context
-    LocalOnly {
-        module: Atom,
-    },
+    LocalOnly { module: Atom },
 }
 
 /// Cross-reference resolver for function calls.
@@ -461,9 +458,9 @@ impl XrefResolver {
         for (module, func_ref) in calls {
             let resolution = self.resolve(func_ref);
             match resolution {
-                FunctionResolution::NotFound { .. } |
-                FunctionResolution::ArityMismatch { .. } |
-                FunctionResolution::LocalOnly { .. } => {
+                FunctionResolution::NotFound { .. }
+                | FunctionResolution::ArityMismatch { .. }
+                | FunctionResolution::LocalOnly { .. } => {
                     undefined.push((module, func_ref));
                 }
                 FunctionResolution::Resolved { .. } => {}
@@ -653,11 +650,7 @@ mod tests {
     #[test]
     fn test_function_ref_remote() {
         let mut table = AtomTable::new();
-        let func = FunctionRef::remote(
-            table.intern("Enum"),
-            table.intern("map"),
-            2,
-        );
+        let func = FunctionRef::remote(table.intern("Enum"), table.intern("map"), 2);
 
         assert!(func.is_remote());
         assert!(!func.is_local());
@@ -765,11 +758,7 @@ mod tests {
         let graph = builder.build();
         let resolver = XrefResolver::new(graph);
 
-        let result = resolver.resolve_local(
-            &table.intern("MyModule"),
-            &table.intern("my_func"),
-            2,
-        );
+        let result = resolver.resolve_local(&table.intern("MyModule"), &table.intern("my_func"), 2);
 
         assert!(matches!(result, FunctionResolution::Resolved { .. }));
     }
@@ -786,11 +775,7 @@ mod tests {
         let resolver = XrefResolver::new(graph);
 
         // Call to Enum.map from MyModule - MyModule doesn't define map
-        let result = resolver.resolve_local(
-            &table.intern("MyModule"),
-            &table.intern("map"),
-            2,
-        );
+        let result = resolver.resolve_local(&table.intern("MyModule"), &table.intern("map"), 2);
 
         assert!(matches!(result, FunctionResolution::LocalOnly { .. }));
     }
@@ -805,9 +790,18 @@ mod tests {
 
         let module = table.intern("MyModule");
         let calls = vec![
-            (module.clone(), FunctionRef::remote(table.intern("Enum"), table.intern("map"), 2)),
-            (module.clone(), FunctionRef::remote(table.intern("Enum"), table.intern("reduce"), 3)),
-            (module.clone(), FunctionRef::remote(table.intern("NonExistent"), table.intern("func"), 1)),
+            (
+                module.clone(),
+                FunctionRef::remote(table.intern("Enum"), table.intern("map"), 2),
+            ),
+            (
+                module.clone(),
+                FunctionRef::remote(table.intern("Enum"), table.intern("reduce"), 3),
+            ),
+            (
+                module.clone(),
+                FunctionRef::remote(table.intern("NonExistent"), table.intern("func"), 1),
+            ),
         ];
 
         let graph = builder.build();

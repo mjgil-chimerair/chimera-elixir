@@ -44,7 +44,10 @@ fn main() {
                 println!("cargo:warning=Zig kernels built successfully");
                 // The library should be in zig-cache or similar
             } else {
-                println!("cargo:warning=Zig build failed: {}", String::from_utf8_lossy(&result.stderr));
+                println!(
+                    "cargo:warning=Zig build failed: {}",
+                    String::from_utf8_lossy(&result.stderr)
+                );
                 println!("cargo:rustc-cfg=ffi_no_zig");
             }
         }

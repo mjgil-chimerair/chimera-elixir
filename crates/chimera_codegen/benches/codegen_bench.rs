@@ -1,8 +1,8 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use chimera_codegen::{Codegen, CodegenConfig};
-use chimera_core::{CoreExpr, CoreModule, CoreFunction};
-use chimera_term::{AtomTable, ModuleName};
 use chimera_ast::Meta;
+use chimera_codegen::{Codegen, CodegenConfig};
+use chimera_core::{CoreExpr, CoreFunction, CoreModule};
+use chimera_term::{AtomTable, ModuleName};
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use std::collections::{HashMap, HashSet};
 
 // Create a more complex expression for benchmarking
@@ -30,9 +30,9 @@ fn create_test_module() -> CoreModule {
         functions: vec![CoreFunction {
             name: chimera_term::Atom::new(100), // Some atom not likely to clash
             arity: 2,
-            params: vec![], // Simple case with no parameters
-            guards: vec![], // No guards
-            meta: Meta::default(), // Default meta
+            params: vec![],              // Simple case with no parameters
+            guards: vec![],              // No guards
+            meta: Meta::default(),       // Default meta
             body: create_complex_expr(), // Fixed: removed Box wrapper
             exported: true,
         }],
@@ -47,11 +47,11 @@ fn create_test_module() -> CoreModule {
 fn bench_opcode_generation(c: &mut Criterion) {
     let mut group = c.benchmark_group("opcode_generation");
     group.sample_size(100);
-    
+
     // Setup common objects
     let config = CodegenConfig::default();
     let module = create_test_module();
-    
+
     // Benchmark code generation for a module
     group.bench_function("module_codegen", |b| {
         b.iter(|| {
@@ -62,13 +62,13 @@ fn bench_opcode_generation(c: &mut Criterion) {
             atoms.intern("test");
             atoms.intern("hello");
             atoms.intern("world");
-            
+
             let mut codegen = Codegen::new(config.clone(), atoms);
             let output = codegen.generate(&module).unwrap();
             black_box(output.code.len());
         });
     });
-    
+
     group.finish();
 }
 

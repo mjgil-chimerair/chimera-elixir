@@ -9,7 +9,7 @@ use chimera_allocator as _;
 use chimera_ast::AST;
 use chimera_module::{ModuleBuilder, ModuleError};
 use chimera_source::SourceFileId;
-use chimera_term::{Atom, SharedAtomTable, ModuleName, Term};
+use chimera_term::{Atom, ModuleName, SharedAtomTable, Term};
 use std::collections::HashMap;
 
 /// Target runtime error.
@@ -31,7 +31,9 @@ impl std::fmt::Display for TargetError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             TargetError::ModuleNotFound(name) => write!(f, "Module not found: {:?}", name),
-            TargetError::FunctionNotFound(name, arity) => write!(f, "Function not found: {:?}/{}", name, arity),
+            TargetError::FunctionNotFound(name, arity) => {
+                write!(f, "Function not found: {:?}/{}", name, arity)
+            }
             TargetError::MacroFailed(msg) => write!(f, "Macro execution failed: {}", msg),
             TargetError::InvalidArtifact(msg) => write!(f, "Invalid artifact: {}", msg),
             TargetError::Unavailable(msg) => write!(f, "Target unavailable: {}", msg),
@@ -226,7 +228,8 @@ impl TargetRuntime for TargetAdapter {
     }
 
     fn emit_module(&mut self, artifact: &CompiledModuleArtifact) -> Result<(), TargetError> {
-        self.loaded_modules.insert(artifact.module.clone(), artifact.clone());
+        self.loaded_modules
+            .insert(artifact.module.clone(), artifact.clone());
         Ok(())
     }
 
@@ -251,9 +254,11 @@ impl TargetRuntime for TargetAdapter {
 
         // Check if function is exported
         if let Some(artifact) = self.loaded_modules.get(module) {
-            if !artifact.exports.iter().any(|(name, arity)| {
-                name == function && *arity == 0
-            }) {
+            if !artifact
+                .exports
+                .iter()
+                .any(|(name, arity)| name == function && *arity == 0)
+            {
                 return Err(TargetError::FunctionNotFound(function.clone(), 0));
             }
         }
@@ -281,7 +286,9 @@ pub fn compile_module(
             let name_atom = if let AST::Atom(ref atom) = *name {
                 atom.clone()
             } else {
-                return Err(TargetError::InvalidArtifact("Invalid module name".to_string()));
+                return Err(TargetError::InvalidArtifact(
+                    "Invalid module name".to_string(),
+                ));
             };
             let module_name = ModuleName::new(vec![name_atom]);
 
@@ -289,10 +296,18 @@ pub fn compile_module(
             let mut exports = Vec::new();
             for form in &body {
                 match form {
-                    AST::Def { name: ref n, clauses, .. } => {
+                    AST::Def {
+                        name: ref n,
+                        clauses,
+                        ..
+                    } => {
                         exports.push((n.clone(), clauses.len() as u8));
                     }
-                    AST::Defp { name: ref n, clauses, .. } => {
+                    AST::Defp {
+                        name: ref n,
+                        clauses,
+                        ..
+                    } => {
                         exports.push((n.clone(), clauses.len() as u8));
                     }
                     _ => {}
@@ -300,7 +315,11 @@ pub fn compile_module(
             }
             (module_name, exports, AST::Defmodule { name, body, meta })
         }
-        _ => return Err(TargetError::InvalidArtifact("Expected defmodule".to_string())),
+        _ => {
+            return Err(TargetError::InvalidArtifact(
+                "Expected defmodule".to_string(),
+            ))
+        }
     };
 
     Ok(CompiledModuleArtifact {
@@ -461,12 +480,7 @@ mod tests {
         let module_name = ModuleName::new(vec![Atom::new(1)]);
         let func_name = Atom::new(2);
 
-        let result = adapter.call_macro(
-            &module_name,
-            &func_name,
-            vec![],
-            MacroEnvTerm::new(),
-        );
+        let result = adapter.call_macro(&module_name, &func_name, vec![], MacroEnvTerm::new());
         assert!(result.is_err());
     }
 
@@ -578,7 +592,8 @@ mod tests {
     fn test_macro_env_term_requires() {
         let mut env = MacroEnvTerm::new();
         env.requires.push(ModuleName::new(vec![Atom::new(1)]));
-        env.requires.push(ModuleName::new(vec![Atom::new(2), Atom::new(3)]));
+        env.requires
+            .push(ModuleName::new(vec![Atom::new(2), Atom::new(3)]));
 
         assert_eq!(env.requires.len(), 2);
     }

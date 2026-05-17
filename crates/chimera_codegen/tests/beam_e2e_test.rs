@@ -5,7 +5,7 @@
 
 use chimera_beam_term::{Atom, BeamFile, Mfa, ModuleCode};
 use chimera_codegen::CodegenConfig;
-use chimera_core::{CoreExpr, CoreFunction, CoreModule, CoreCompileInfo};
+use chimera_core::{CoreCompileInfo, CoreExpr, CoreFunction, CoreModule};
 use chimera_term::{AtomTable, ModuleName};
 use std::collections::{HashMap, HashSet};
 
@@ -142,7 +142,10 @@ fn test_beam_multiple_functions() {
                 exported: true,
                 params: vec![x_atom.clone()],
                 guards: vec![],
-                body: CoreExpr::Var { name: x_atom.clone(), arity: 0 },
+                body: CoreExpr::Var {
+                    name: x_atom.clone(),
+                    arity: 0,
+                },
                 meta: Default::default(),
             },
             CoreFunction {
@@ -151,7 +154,10 @@ fn test_beam_multiple_functions() {
                 exported: true,
                 params: vec![x_atom.clone(), y_atom.clone()],
                 guards: vec![],
-                body: CoreExpr::Var { name: x_atom, arity: 0 },
+                body: CoreExpr::Var {
+                    name: x_atom,
+                    arity: 0,
+                },
                 meta: Default::default(),
             },
         ],

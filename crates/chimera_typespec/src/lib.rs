@@ -110,7 +110,10 @@ impl TypeMeta {
 #[derive(Debug, Clone, PartialEq)]
 pub enum TypespecArg {
     /// Named argument: x :: integer()
-    Named { name: Atom, type_def: Box<TypespecType> },
+    Named {
+        name: Atom,
+        type_def: Box<TypespecType>,
+    },
     /// Anonymous argument: integer()
     Anonymous(Box<TypespecType>),
 }
@@ -204,11 +207,30 @@ pub enum TypespecType {
 impl TypespecType {
     /// Check if this is a built-in type name.
     pub fn is_builtin_type(name: &str) -> bool {
-        matches!(name,
-            "any" | "integer" | "float" | "number" | "binary" | "bitstring"
-            | "string" | "charlist" | "boolean" | "pid" | "reference" | "port"
-            | "term" | "nil" | "maybe" | "none" | "atom" | "map" | "list"
-            | "tuple" | "fun" | "timeout"
+        matches!(
+            name,
+            "any"
+                | "integer"
+                | "float"
+                | "number"
+                | "binary"
+                | "bitstring"
+                | "string"
+                | "charlist"
+                | "boolean"
+                | "pid"
+                | "reference"
+                | "port"
+                | "term"
+                | "nil"
+                | "maybe"
+                | "none"
+                | "atom"
+                | "map"
+                | "list"
+                | "tuple"
+                | "fun"
+                | "timeout"
         )
     }
 }
@@ -223,7 +245,11 @@ pub struct ParsedTypespec {
 
 impl ParsedTypespec {
     pub fn new(spec: Typespec, span: SourceSpan, file_id: SourceFileId) -> Self {
-        ParsedTypespec { spec, span, file_id }
+        ParsedTypespec {
+            spec,
+            span,
+            file_id,
+        }
     }
 }
 
@@ -238,7 +264,13 @@ impl TypespecBuilder {
     }
 
     /// Create a spec typespec.
-    pub fn spec(&self, name: Atom, arity: u8, params: Vec<TypespecArg>, return_type: TypespecType) -> Typespec {
+    pub fn spec(
+        &self,
+        name: Atom,
+        arity: u8,
+        params: Vec<TypespecArg>,
+        return_type: TypespecType,
+    ) -> Typespec {
         Typespec::Spec {
             name,
             arity,
@@ -258,7 +290,13 @@ impl TypespecBuilder {
     }
 
     /// Create a callback typespec.
-    pub fn callback(&self, name: Atom, arity: u8, params: Vec<TypespecArg>, return_type: TypespecType) -> Typespec {
+    pub fn callback(
+        &self,
+        name: Atom,
+        arity: u8,
+        params: Vec<TypespecArg>,
+        return_type: TypespecType,
+    ) -> Typespec {
         Typespec::Callback {
             name,
             arity,
@@ -279,7 +317,11 @@ pub enum ValidationError {
     /// Unused type definition
     UnusedType { name: Atom },
     /// Type arity mismatch
-    ArityMismatch { name: Atom, expected: u8, actual: u8 },
+    ArityMismatch {
+        name: Atom,
+        expected: u8,
+        actual: u8,
+    },
     /// Invalid type specification
     InvalidType { message: String },
 }
@@ -292,13 +334,26 @@ impl std::fmt::Display for ValidationError {
             }
             ValidationError::CyclicType { name, cycle } => {
                 let cycle_str: Vec<String> = cycle.iter().map(|a| format!("{:?}", a)).collect();
-                write!(f, "cyclic type detected for '{:?}': {}", name, cycle_str.join(" -> "))
+                write!(
+                    f,
+                    "cyclic type detected for '{:?}': {}",
+                    name,
+                    cycle_str.join(" -> ")
+                )
             }
             ValidationError::UnusedType { name } => {
                 write!(f, "unused type '{:?}'", name)
             }
-            ValidationError::ArityMismatch { name, expected, actual } => {
-                write!(f, "type '{:?}' expects {} arguments, got {}", name, expected, actual)
+            ValidationError::ArityMismatch {
+                name,
+                expected,
+                actual,
+            } => {
+                write!(
+                    f,
+                    "type '{:?}' expects {} arguments, got {}",
+                    name, expected, actual
+                )
             }
             ValidationError::InvalidType { message } => {
                 write!(f, "invalid type: {}", message)
@@ -332,14 +387,22 @@ impl ValidationContext {
 
     /// Add a known spec to the context.
     pub fn add_spec(&mut self, name: Atom, arity: u8) {
-        if !self.known_specs.iter().any(|(n, a)| *n == name && *a == arity) {
+        if !self
+            .known_specs
+            .iter()
+            .any(|(n, a)| *n == name && *a == arity)
+        {
             self.known_specs.push((name, arity));
         }
     }
 
     /// Add a known callback to the context.
     pub fn add_callback(&mut self, name: Atom, arity: u8) {
-        if !self.known_callbacks.iter().any(|(n, a)| *n == name && *a == arity) {
+        if !self
+            .known_callbacks
+            .iter()
+            .any(|(n, a)| *n == name && *a == arity)
+        {
             self.known_callbacks.push((name, arity));
         }
     }
@@ -351,7 +414,9 @@ impl ValidationContext {
 
     /// Check if a spec is known.
     pub fn is_known_spec(&self, name: Atom, arity: u8) -> bool {
-        self.known_specs.iter().any(|(n, a)| *n == name && *a == arity)
+        self.known_specs
+            .iter()
+            .any(|(n, a)| *n == name && *a == arity)
     }
 }
 
@@ -374,7 +439,13 @@ impl TypespecValidator {
     /// Validate a typespec.
     pub fn validate(&self, spec: &Typespec) -> Result<(), Diagnostic> {
         match spec {
-            Typespec::Spec { name, arity, params, return_type, .. } => {
+            Typespec::Spec {
+                name,
+                arity,
+                params,
+                return_type,
+                ..
+            } => {
                 self.validate_name(name)?;
                 self.validate_arity(*arity)?;
                 for param in params {
@@ -398,7 +469,13 @@ impl TypespecValidator {
                 self.validate_type(type_def)?;
                 Ok(())
             }
-            Typespec::Callback { name, arity, params, return_type, .. } => {
+            Typespec::Callback {
+                name,
+                arity,
+                params,
+                return_type,
+                ..
+            } => {
                 self.validate_name(name)?;
                 self.validate_arity(*arity)?;
                 for param in params {
@@ -407,7 +484,13 @@ impl TypespecValidator {
                 self.validate_type(return_type)?;
                 Ok(())
             }
-            Typespec::MacroCallback { name, arity, params, return_type, .. } => {
+            Typespec::MacroCallback {
+                name,
+                arity,
+                params,
+                return_type,
+                ..
+            } => {
                 self.validate_name(name)?;
                 self.validate_arity(*arity)?;
                 for param in params {
@@ -425,11 +508,18 @@ impl TypespecValidator {
         self.validate_with_visited(spec, &mut visited)
     }
 
-    fn validate_with_visited(&self, spec: &Typespec, visited: &mut std::collections::HashSet<Atom>) -> Result<(), Diagnostic> {
+    fn validate_with_visited(
+        &self,
+        spec: &Typespec,
+        visited: &mut std::collections::HashSet<Atom>,
+    ) -> Result<(), Diagnostic> {
         match spec {
             Typespec::Type { name, type_def, .. } => {
                 if visited.contains(name) {
-                    return Err(Diagnostic::error(format!("cyclic type detected: {:?}", name)));
+                    return Err(Diagnostic::error(format!(
+                        "cyclic type detected: {:?}",
+                        name
+                    )));
                 }
                 visited.insert(name.clone());
                 let result = self.validate_type_with_visited(type_def, visited);
@@ -440,7 +530,11 @@ impl TypespecValidator {
         }
     }
 
-    fn validate_type_with_visited(&self, ty: &TypespecType, visited: &mut std::collections::HashSet<Atom>) -> Result<(), Diagnostic> {
+    fn validate_type_with_visited(
+        &self,
+        ty: &TypespecType,
+        visited: &mut std::collections::HashSet<Atom>,
+    ) -> Result<(), Diagnostic> {
         match ty {
             TypespecType::Remote { module, name, args } => {
                 // Check if this is a local type reference (not a builtin)
@@ -572,7 +666,9 @@ impl TypespecValidator {
                 Typespec::Opaque { name, .. } => ctx.add_type((*name).clone()),
                 Typespec::Spec { name, arity, .. } => ctx.add_spec((*name).clone(), *arity),
                 Typespec::Callback { name, arity, .. } => ctx.add_callback((*name).clone(), *arity),
-                Typespec::MacroCallback { name, arity, .. } => ctx.add_callback((*name).clone(), *arity),
+                Typespec::MacroCallback { name, arity, .. } => {
+                    ctx.add_callback((*name).clone(), *arity)
+                }
             }
         }
 
@@ -604,8 +700,8 @@ pub fn extract_typespecs(_file_id: SourceFileId, _body: &[AST]) -> Vec<ParsedTyp
     Vec::new()
 }
 
-mod parser;
 mod emit;
+mod parser;
 
 #[cfg(test)]
 mod tests {
@@ -763,9 +859,10 @@ mod tests {
 
     #[test]
     fn test_typespec_type_map() {
-        let ty = TypespecType::Map(vec![
-            (TypespecType::Atom(AtomTable::new().intern("key")), TypespecType::Integer),
-        ]);
+        let ty = TypespecType::Map(vec![(
+            TypespecType::Atom(AtomTable::new().intern("key")),
+            TypespecType::Integer,
+        )]);
         match ty {
             TypespecType::Map(pairs) => {
                 assert_eq!(pairs.len(), 1);
@@ -860,7 +957,11 @@ mod tests {
             args: vec![TypespecType::Integer],
         };
         match ty {
-            TypespecType::Remote { module: _, name: _, args } => {
+            TypespecType::Remote {
+                module: _,
+                name: _,
+                args,
+            } => {
                 assert_eq!(args.len(), 1);
             }
             _ => panic!("expected Remote"),
@@ -879,7 +980,11 @@ mod tests {
             args: Vec::new(),
         };
         match ty {
-            TypespecType::Remote { module: m, name: n, args } => {
+            TypespecType::Remote {
+                module: m,
+                name: n,
+                args,
+            } => {
                 assert_eq!(m, table.intern("String"));
                 assert_eq!(n, table.intern("t"));
                 assert!(args.is_empty());
@@ -939,7 +1044,11 @@ mod tests {
             args: vec![TypespecType::Integer],
         };
         match ty {
-            TypespecType::RemoteType { module: _, name: _, args } => {
+            TypespecType::RemoteType {
+                module: _,
+                name: _,
+                args,
+            } => {
                 assert_eq!(args.len(), 1);
             }
             _ => panic!("expected RemoteType"),
@@ -1014,12 +1123,14 @@ mod tests {
 
     #[test]
     fn test_typespec_type_eq_map() {
-        let a = TypespecType::Map(vec![
-            (TypespecType::Atom(AtomTable::new().intern("a")), TypespecType::Integer)
-        ]);
-        let b = TypespecType::Map(vec![
-            (TypespecType::Atom(AtomTable::new().intern("a")), TypespecType::Integer)
-        ]);
+        let a = TypespecType::Map(vec![(
+            TypespecType::Atom(AtomTable::new().intern("a")),
+            TypespecType::Integer,
+        )]);
+        let b = TypespecType::Map(vec![(
+            TypespecType::Atom(AtomTable::new().intern("a")),
+            TypespecType::Integer,
+        )]);
         assert_eq!(a, b);
     }
 
@@ -1056,10 +1167,7 @@ mod tests {
             meta: TypeMeta::new(SourceFileId::new(0)),
         };
 
-        let span = SourceSpan::new(
-            SourceOffset::new(0),
-            SourceOffset::new(10),
-        );
+        let span = SourceSpan::new(SourceOffset::new(0), SourceOffset::new(10));
 
         let parsed = ParsedTypespec::new(spec, span, SourceFileId::new(0));
         assert_eq!(parsed.file_id, SourceFileId::new(0));
@@ -1088,14 +1196,18 @@ mod tests {
         let spec = builder.spec(
             name,
             2,
-            vec![
-                TypespecArg::Anonymous(Box::new(TypespecType::Integer)),
-            ],
+            vec![TypespecArg::Anonymous(Box::new(TypespecType::Integer))],
             TypespecType::Boolean,
         );
 
         match spec {
-            Typespec::Spec { name: _, arity, params, return_type, .. } => {
+            Typespec::Spec {
+                name: _,
+                arity,
+                params,
+                return_type,
+                ..
+            } => {
                 assert_eq!(arity, 2);
                 assert_eq!(params.len(), 1);
                 assert_eq!(*return_type, TypespecType::Boolean);
@@ -1133,7 +1245,11 @@ mod tests {
         }
         assert!(result.is_ok(), "parse_type failed: {:?}", result.err());
         match result.unwrap() {
-            TypespecType::Remote { module: _, name: _, args: _ } => {}
+            TypespecType::Remote {
+                module: _,
+                name: _,
+                args: _,
+            } => {}
             _ => panic!("expected Remote type"),
         }
     }
@@ -1159,7 +1275,13 @@ mod tests {
         assert!(result.is_ok(), "parse_spec failed: {:?}", result.err());
         let spec = result.unwrap();
         match spec {
-            Typespec::Spec { name: _, arity, params, return_type, .. } => {
+            Typespec::Spec {
+                name: _,
+                arity,
+                params,
+                return_type,
+                ..
+            } => {
                 assert_eq!(arity, 2);
                 assert_eq!(params.len(), 2);
                 assert_eq!(*return_type, TypespecType::Integer);
@@ -1173,7 +1295,11 @@ mod tests {
         let result = parser::parse_type_def("my_type :: integer()", SourceFileId::new(0));
         assert!(result.is_ok());
         match result.unwrap() {
-            Typespec::Type { name: _, type_def, meta: _ } => {
+            Typespec::Type {
+                name: _,
+                type_def,
+                meta: _,
+            } => {
                 assert_eq!(*type_def, TypespecType::Integer);
             }
             _ => panic!("expected Type"),
@@ -1182,7 +1308,10 @@ mod tests {
 
     #[test]
     fn test_parse_attribute_spec() {
-        let result = parser::parse_attribute("@spec add(integer, integer) :: integer", SourceFileId::new(0));
+        let result = parser::parse_attribute(
+            "@spec add(integer, integer) :: integer",
+            SourceFileId::new(0),
+        );
         assert!(result.is_ok());
         match result.unwrap() {
             Typespec::Spec { arity, .. } => assert_eq!(arity, 2),
@@ -1254,7 +1383,10 @@ mod tests {
         let mut table = AtomTable::new();
         let name = table.intern("my_callback");
         ctx.add_callback(name.clone(), 1);
-        assert!(ctx.known_callbacks.iter().any(|(n, a)| *n == name && *a == 1));
+        assert!(ctx
+            .known_callbacks
+            .iter()
+            .any(|(n, a)| *n == name && *a == 1));
     }
 
     #[test]
@@ -1358,9 +1490,10 @@ mod tests {
         let mut table = AtomTable::new();
         let spec = Typespec::Type {
             name: table.intern("map_type"),
-            type_def: Box::new(TypespecType::Map(vec![
-                (TypespecType::Atom(table.intern("key")), TypespecType::Integer),
-            ])),
+            type_def: Box::new(TypespecType::Map(vec![(
+                TypespecType::Atom(table.intern("key")),
+                TypespecType::Integer,
+            )])),
             meta: TypeMeta::new(SourceFileId::new(0)),
         };
         assert!(validator.validate(&spec).is_ok());
@@ -1405,7 +1538,11 @@ mod tests {
             cycle: vec![table.intern("a"), table.intern("b"), table.intern("a")],
         };
         let display = format!("{}", err);
-        assert!(display.contains("cyclic type detected"), "unexpected: {}", display);
+        assert!(
+            display.contains("cyclic type detected"),
+            "unexpected: {}",
+            display
+        );
         assert!(display.contains("Atom"), "unexpected: {}", display);
     }
 
@@ -1418,7 +1555,11 @@ mod tests {
             actual: 3,
         };
         let msg = format!("{}", err);
-        assert!(msg.contains("expects 2 arguments, got 3"), "unexpected: {}", msg);
+        assert!(
+            msg.contains("expects 2 arguments, got 3"),
+            "unexpected: {}",
+            msg
+        );
     }
 
     #[test]
@@ -1454,9 +1595,7 @@ mod tests {
                 Typespec::Spec {
                     name: table.intern("func_b"),
                     arity: 1,
-                    params: vec![
-                        TypespecArg::Anonymous(Box::new(TypespecType::String)),
-                    ],
+                    params: vec![TypespecArg::Anonymous(Box::new(TypespecType::String))],
                     return_type: Box::new(TypespecType::Boolean),
                     meta: SpecMeta::new(SourceFileId::new(0)),
                 },

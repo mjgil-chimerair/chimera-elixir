@@ -9,11 +9,11 @@
 #[cfg(test)]
 use chimera_allocator as _;
 
-use chimera_ast::{AST, Meta, Hygiene};
+use chimera_ast::{Hygiene, Meta, AST};
 use chimera_source::SourceFileId;
-use chimera_term::{Atom, SharedAtomTable, ModuleName, VarContext};
-use std::collections::{HashMap, HashSet};
+use chimera_term::{Atom, ModuleName, SharedAtomTable, VarContext};
 use std::collections::hash_map::Entry;
+use std::collections::{HashMap, HashSet};
 
 /// Macro environment tracking compile-time context.
 ///
@@ -147,7 +147,15 @@ impl VarTable {
     /// Define a variable in the current scope.
     pub fn define(&mut self, name: Atom, meta: Meta, context: VarContext, origin: Option<String>) {
         if let Some(scope) = self.scopes.last_mut() {
-            scope.vars.insert(name.clone(), VarInfo { name, meta, context, origin });
+            scope.vars.insert(
+                name.clone(),
+                VarInfo {
+                    name,
+                    meta,
+                    context,
+                    origin,
+                },
+            );
         }
     }
 
@@ -277,7 +285,12 @@ impl MacroEnv {
 
     /// Enter a quoted context.
     pub fn enter_quote(&mut self) {
-        self.push_scope(self.module.as_ref().and_then(|m| m.segments().last().map(|s| s.clone())).unwrap_or(Atom::new(0)));
+        self.push_scope(
+            self.module
+                .as_ref()
+                .and_then(|m| m.segments().last().map(|s| s.clone()))
+                .unwrap_or(Atom::new(0)),
+        );
         self.context = ExprContext::Quote;
     }
 
@@ -354,15 +367,18 @@ impl Expander {
             AST::CharList(_) => Ok(ast),
             AST::Binary(_, _) => Ok(ast),
             AST::List(items) => {
-                let expanded: Result<Vec<_>, _> = items.into_iter().map(|i| self.expand(i)).collect();
+                let expanded: Result<Vec<_>, _> =
+                    items.into_iter().map(|i| self.expand(i)).collect();
                 Ok(AST::List(expanded?))
             }
             AST::Tuple(items) => {
-                let expanded: Result<Vec<_>, _> = items.into_iter().map(|i| self.expand(i)).collect();
+                let expanded: Result<Vec<_>, _> =
+                    items.into_iter().map(|i| self.expand(i)).collect();
                 Ok(AST::Tuple(expanded?))
             }
             AST::Map(pairs) => {
-                let expanded: Result<Vec<_>, _> = pairs.into_iter()
+                let expanded: Result<Vec<_>, _> = pairs
+                    .into_iter()
                     .map(|(k, v)| Ok((self.expand(k)?, self.expand(v)?)))
                     .collect();
                 Ok(AST::Map(expanded?))
@@ -371,7 +387,10 @@ impl Expander {
                 // Check hygiene and apply if needed
                 if self.env.is_generated() || self.env.hygiene().generated {
                     let new_meta = meta.with_hygiene(self.env.hygiene());
-                    Ok(AST::Var { name, meta: new_meta })
+                    Ok(AST::Var {
+                        name,
+                        meta: new_meta,
+                    })
                 } else {
                     Ok(AST::Var { name, meta })
                 }
@@ -389,12 +408,16 @@ impl Expander {
                 }
             }
             AST::Alias { segments, meta } => Ok(AST::Alias { segments, meta }),
-            AST::Call { name, meta, args } => {
-                self.expand_call(name, meta, args)
-            }
-            AST::RemoteCall { module, name, meta, args } => {
+            AST::Call { name, meta, args } => self.expand_call(name, meta, args),
+            AST::RemoteCall {
+                module,
+                name,
+                meta,
+                args,
+            } => {
                 let expanded_module = Box::new(self.expand(*module)?);
-                let expanded_args: Result<Vec<_>, _> = args.into_iter().map(|a| self.expand(a)).collect();
+                let expanded_args: Result<Vec<_>, _> =
+                    args.into_iter().map(|a| self.expand(a)).collect();
                 Ok(AST::RemoteCall {
                     module: expanded_module,
                     name,
@@ -409,7 +432,8 @@ impl Expander {
                         segments: import.module.segments().to_vec(),
                         meta: meta.clone(),
                     };
-                    let expanded_args: Result<Vec<_>, _> = args.into_iter().map(|a| self.expand(a)).collect();
+                    let expanded_args: Result<Vec<_>, _> =
+                        args.into_iter().map(|a| self.expand(a)).collect();
                     Ok(AST::RemoteCall {
                         module: Box::new(module),
                         name: name.clone(),
@@ -417,53 +441,68 @@ impl Expander {
                         args: expanded_args?,
                     })
                 } else {
-                    let expanded_args: Result<Vec<_>, _> = args.into_iter().map(|a| self.expand(a)).collect();
-                    Ok(AST::LocalCall { name: name.clone(), meta, args: expanded_args? })
+                    let expanded_args: Result<Vec<_>, _> =
+                        args.into_iter().map(|a| self.expand(a)).collect();
+                    Ok(AST::LocalCall {
+                        name: name.clone(),
+                        meta,
+                        args: expanded_args?,
+                    })
                 }
             }
-            AST::Quote { value, meta } => {
-                self.expand_quote(*value, meta)
-            }
-            AST::Unquote { expr, meta } => {
-                self.expand_unquote(*expr, meta)
-            }
-            AST::UnquoteSplicing { expr, meta } => {
-                self.expand_unquote_splicing(*expr, meta)
-            }
-            AST::Defmodule { name, body, meta } => {
-                self.expand_defmodule(*name, body, meta)
-            }
-            AST::Def { name, meta, clauses } => {
-                self.expand_def(name, meta, clauses)
-            }
-            AST::Defp { name, meta, clauses } => {
-                self.expand_defp(name, meta, clauses)
-            }
-            AST::Defmacro { name, meta, clauses } => {
-                self.expand_defmacro(name, meta, clauses)
-            }
-            AST::Defmacrop { name, meta, clauses } => {
-                self.expand_defmacrop(name, meta, clauses)
-            }
-            AST::Fn { clauses, meta } => {
-                self.expand_fn(clauses, meta)
-            }
-            AST::Case { expr, clauses, meta } => {
-                self.expand_case(*expr, clauses, meta)
-            }
-            AST::Cond { clauses, meta } => {
-                self.expand_cond(clauses, meta)
-            }
-            AST::Try { expr, rescue, catch, after, meta } => {
-                self.expand_try(*expr, rescue, catch, after, meta)
-            }
-            AST::Receive { clauses, after, meta } => {
-                self.expand_receive(clauses, after, meta)
-            }
-            AST::With { bindings, body, meta } => {
-                self.expand_with(bindings, *body, meta)
-            }
-            AST::Match { pattern, value, meta } => {
+            AST::Quote { value, meta } => self.expand_quote(*value, meta),
+            AST::Unquote { expr, meta } => self.expand_unquote(*expr, meta),
+            AST::UnquoteSplicing { expr, meta } => self.expand_unquote_splicing(*expr, meta),
+            AST::Defmodule { name, body, meta } => self.expand_defmodule(*name, body, meta),
+            AST::Def {
+                name,
+                meta,
+                clauses,
+            } => self.expand_def(name, meta, clauses),
+            AST::Defp {
+                name,
+                meta,
+                clauses,
+            } => self.expand_defp(name, meta, clauses),
+            AST::Defmacro {
+                name,
+                meta,
+                clauses,
+            } => self.expand_defmacro(name, meta, clauses),
+            AST::Defmacrop {
+                name,
+                meta,
+                clauses,
+            } => self.expand_defmacrop(name, meta, clauses),
+            AST::Fn { clauses, meta } => self.expand_fn(clauses, meta),
+            AST::Case {
+                expr,
+                clauses,
+                meta,
+            } => self.expand_case(*expr, clauses, meta),
+            AST::Cond { clauses, meta } => self.expand_cond(clauses, meta),
+            AST::Try {
+                expr,
+                rescue,
+                catch,
+                after,
+                meta,
+            } => self.expand_try(*expr, rescue, catch, after, meta),
+            AST::Receive {
+                clauses,
+                after,
+                meta,
+            } => self.expand_receive(clauses, after, meta),
+            AST::With {
+                bindings,
+                body,
+                meta,
+            } => self.expand_with(bindings, *body, meta),
+            AST::Match {
+                pattern,
+                value,
+                meta,
+            } => {
                 let expanded_value = Box::new(self.expand(*value)?);
                 Ok(AST::Match {
                     pattern,
@@ -471,72 +510,73 @@ impl Expander {
                     meta,
                 })
             }
-            AST::Clause { pattern, guard, body, meta } => {
-                Ok(AST::Clause {
-                    pattern,
-                    guard,
-                    body,
-                    meta,
-                })
-            }
+            AST::Clause {
+                pattern,
+                guard,
+                body,
+                meta,
+            } => Ok(AST::Clause {
+                pattern,
+                guard,
+                body,
+                meta,
+            }),
             AST::Block { exprs, meta } => {
-                let expanded: Result<Vec<_>, _> = exprs.into_iter().map(|e| self.expand(e)).collect();
-                Ok(AST::Block { exprs: expanded?, meta })
-            }
-            AST::BinaryOp { op, left, right, meta } => {
-                Ok(AST::BinaryOp {
-                    op,
-                    left: Box::new(self.expand(*left)?),
-                    right: Box::new(self.expand(*right)?),
+                let expanded: Result<Vec<_>, _> =
+                    exprs.into_iter().map(|e| self.expand(e)).collect();
+                Ok(AST::Block {
+                    exprs: expanded?,
                     meta,
                 })
             }
-            AST::UnaryOp { op, arg, meta } => {
-                Ok(AST::UnaryOp {
-                    op,
-                    arg: Box::new(self.expand(*arg)?),
-                    meta,
-                })
-            }
-            AST::Access { record, field, meta } => {
-                Ok(AST::Access {
-                    record: Box::new(self.expand(*record)?),
-                    field: Box::new(self.expand(*field)?),
-                    meta,
-                })
-            }
-            AST::Capture { fun, arity, meta } => {
-                Ok(AST::Capture {
-                    fun: Box::new(self.expand(*fun)?),
-                    arity,
-                    meta,
-                })
-            }
-            AST::AliasExpr { arg, meta } => {
-                Ok(AST::AliasExpr {
-                    arg: Box::new(self.expand(*arg)?),
-                    meta,
-                })
-            }
-            AST::RequireExpr { arg, meta } => {
-                Ok(AST::RequireExpr {
-                    arg: Box::new(self.expand(*arg)?),
-                    meta,
-                })
-            }
-            AST::ImportExpr { arg, meta, opts } => {
-                Ok(AST::ImportExpr {
-                    arg: Box::new(self.expand(*arg)?),
-                    meta,
-                    opts,
-                })
-            }
-            AST::Attribute { name, value, meta } => {
-                self.expand_attribute(name, *value, meta)
-            }
+            AST::BinaryOp {
+                op,
+                left,
+                right,
+                meta,
+            } => Ok(AST::BinaryOp {
+                op,
+                left: Box::new(self.expand(*left)?),
+                right: Box::new(self.expand(*right)?),
+                meta,
+            }),
+            AST::UnaryOp { op, arg, meta } => Ok(AST::UnaryOp {
+                op,
+                arg: Box::new(self.expand(*arg)?),
+                meta,
+            }),
+            AST::Access {
+                record,
+                field,
+                meta,
+            } => Ok(AST::Access {
+                record: Box::new(self.expand(*record)?),
+                field: Box::new(self.expand(*field)?),
+                meta,
+            }),
+            AST::Capture { fun, arity, meta } => Ok(AST::Capture {
+                fun: Box::new(self.expand(*fun)?),
+                arity,
+                meta,
+            }),
+            AST::AliasExpr { arg, meta } => Ok(AST::AliasExpr {
+                arg: Box::new(self.expand(*arg)?),
+                meta,
+            }),
+            AST::RequireExpr { arg, meta } => Ok(AST::RequireExpr {
+                arg: Box::new(self.expand(*arg)?),
+                meta,
+            }),
+            AST::ImportExpr { arg, meta, opts } => Ok(AST::ImportExpr {
+                arg: Box::new(self.expand(*arg)?),
+                meta,
+                opts,
+            }),
+            AST::Attribute { name, value, meta } => self.expand_attribute(name, *value, meta),
             AST::Defstruct { fields, meta } => {
                 // Expand field defaults and return Defstruct
-                let expanded_fields: Result<Vec<_>, _> = fields.into_iter()
+                let expanded_fields: Result<Vec<_>, _> = fields
+                    .into_iter()
                     .map(|(k, dv)| {
                         let expanded_dv = match dv {
                             Some(v) => Some(Box::new(self.expand(*v)?)),
@@ -552,7 +592,8 @@ impl Expander {
             }
             AST::Defexception { fields, meta } => {
                 // Expand field defaults and return Defexception
-                let expanded_fields: Result<Vec<_>, _> = fields.into_iter()
+                let expanded_fields: Result<Vec<_>, _> = fields
+                    .into_iter()
                     .map(|(k, dv)| {
                         let expanded_dv = match dv {
                             Some(v) => Some(Box::new(self.expand(*v)?)),
@@ -617,7 +658,8 @@ impl Expander {
                 segments: import.module.segments().to_vec(),
                 meta: meta.clone(),
             };
-            let expanded_args: Result<Vec<_>, _> = args.into_iter().map(|a| self.expand(a)).collect();
+            let expanded_args: Result<Vec<_>, _> =
+                args.into_iter().map(|a| self.expand(a)).collect();
             return Ok(AST::RemoteCall {
                 module: Box::new(module),
                 name: name.clone(),
@@ -639,7 +681,10 @@ impl Expander {
         // alias Foo.Bar
         // alias Foo.Bar, as: Bar
         if args.is_empty() {
-            return Err(ExpandError::InvalidArguments("alias requires at least one argument".into(), meta));
+            return Err(ExpandError::InvalidArguments(
+                "alias requires at least one argument".into(),
+                meta,
+            ));
         }
 
         let module_arg = &args[0];
@@ -658,7 +703,10 @@ impl Expander {
     fn expand_require(&mut self, args: Vec<AST>, meta: Meta) -> Result<AST, ExpandError> {
         // require Module
         if args.is_empty() {
-            return Err(ExpandError::InvalidArguments("require requires at least one argument".into(), meta));
+            return Err(ExpandError::InvalidArguments(
+                "require requires at least one argument".into(),
+                meta,
+            ));
         }
 
         let module_arg = &args[0];
@@ -675,7 +723,10 @@ impl Expander {
         // import Module, only: [func: 1]
         // import Module, except: [func: 1]
         if args.is_empty() {
-            return Err(ExpandError::InvalidArguments("import requires at least one argument".into(), meta));
+            return Err(ExpandError::InvalidArguments(
+                "import requires at least one argument".into(),
+                meta,
+            ));
         }
 
         let module_arg = &args[0];
@@ -712,13 +763,16 @@ impl Expander {
             }
 
             if let Some(module_atom) = segments.last() {
-                self.env.add_import(module_atom.clone(), Import {
-                    module,
-                    alias: None,
-                    unaliased: false,
-                    only: only_filter,
-                    except: except_filter,
-                });
+                self.env.add_import(
+                    module_atom.clone(),
+                    Import {
+                        module,
+                        alias: None,
+                        unaliased: false,
+                        only: only_filter,
+                        except: except_filter,
+                    },
+                );
             }
         }
 
@@ -748,13 +802,20 @@ impl Expander {
         // use Module, opts
         // Expands to: Module.__using__(opts)
         if args.is_empty() {
-            return Err(ExpandError::InvalidArguments("use requires at least one argument".into(), meta));
+            return Err(ExpandError::InvalidArguments(
+                "use requires at least one argument".into(),
+                meta,
+            ));
         }
 
         let module_arg = &args[0];
         let expanded_module = self.expand(module_arg.clone())?;
 
-        if let AST::Alias { segments, meta: alias_meta } = expanded_module {
+        if let AST::Alias {
+            segments,
+            meta: alias_meta,
+        } = expanded_module
+        {
             let using_call = AST::Call {
                 name: self.atoms.intern("__using__"),
                 meta: meta.clone(),
@@ -762,13 +823,19 @@ impl Expander {
             };
 
             Ok(AST::RemoteCall {
-                module: Box::new(AST::Alias { segments, meta: alias_meta }),
+                module: Box::new(AST::Alias {
+                    segments,
+                    meta: alias_meta,
+                }),
                 name: self.atoms.intern("__using__"),
                 meta,
                 args: vec![using_call],
             })
         } else {
-            Err(ExpandError::InvalidArguments("use requires a module alias".into(), meta))
+            Err(ExpandError::InvalidArguments(
+                "use requires a module alias".into(),
+                meta,
+            ))
         }
     }
 
@@ -825,7 +892,12 @@ impl Expander {
         self.expand(expr)
     }
 
-    fn expand_defmodule(&mut self, name: AST, body: Vec<AST>, meta: Meta) -> Result<AST, ExpandError> {
+    fn expand_defmodule(
+        &mut self,
+        name: AST,
+        body: Vec<AST>,
+        meta: Meta,
+    ) -> Result<AST, ExpandError> {
         let module_name = if let AST::Alias { segments, .. } = &name {
             ModuleName::new(segments.clone())
         } else {
@@ -834,7 +906,13 @@ impl Expander {
 
         let old_module = self.env.module.take();
         self.env.set_module(module_name.clone());
-        self.env.push_scope(module_name.segments().last().map(|s| s.clone()).unwrap_or(Atom::new(0)));
+        self.env.push_scope(
+            module_name
+                .segments()
+                .last()
+                .map(|s| s.clone())
+                .unwrap_or(Atom::new(0)),
+        );
 
         let expanded_body: Result<Vec<_>, _> = body.into_iter().map(|e| self.expand(e)).collect();
 
@@ -848,32 +926,68 @@ impl Expander {
         })
     }
 
-    fn expand_def(&mut self, name: Atom, meta: Meta, clauses: Vec<AST>) -> Result<AST, ExpandError> {
+    fn expand_def(
+        &mut self,
+        name: Atom,
+        meta: Meta,
+        clauses: Vec<AST>,
+    ) -> Result<AST, ExpandError> {
         let arity = self.calculate_arity_from_clauses(&clauses);
         self.env.set_function(name.clone(), arity);
         let expanded: Result<Vec<_>, _> = clauses.into_iter().map(|c| self.expand(c)).collect();
-        Ok(AST::Def { name, meta, clauses: expanded? })
+        Ok(AST::Def {
+            name,
+            meta,
+            clauses: expanded?,
+        })
     }
 
-    fn expand_defp(&mut self, name: Atom, meta: Meta, clauses: Vec<AST>) -> Result<AST, ExpandError> {
+    fn expand_defp(
+        &mut self,
+        name: Atom,
+        meta: Meta,
+        clauses: Vec<AST>,
+    ) -> Result<AST, ExpandError> {
         let arity = self.calculate_arity_from_clauses(&clauses);
         self.env.set_function(name.clone(), arity);
         let expanded: Result<Vec<_>, _> = clauses.into_iter().map(|c| self.expand(c)).collect();
-        Ok(AST::Defp { name, meta, clauses: expanded? })
+        Ok(AST::Defp {
+            name,
+            meta,
+            clauses: expanded?,
+        })
     }
 
-    fn expand_defmacro(&mut self, name: Atom, meta: Meta, clauses: Vec<AST>) -> Result<AST, ExpandError> {
+    fn expand_defmacro(
+        &mut self,
+        name: Atom,
+        meta: Meta,
+        clauses: Vec<AST>,
+    ) -> Result<AST, ExpandError> {
         let arity = self.calculate_arity_from_clauses(&clauses);
         self.env.set_function(name.clone(), arity);
         let expanded: Result<Vec<_>, _> = clauses.into_iter().map(|c| self.expand(c)).collect();
-        Ok(AST::Defmacro { name, meta, clauses: expanded? })
+        Ok(AST::Defmacro {
+            name,
+            meta,
+            clauses: expanded?,
+        })
     }
 
-    fn expand_defmacrop(&mut self, name: Atom, meta: Meta, clauses: Vec<AST>) -> Result<AST, ExpandError> {
+    fn expand_defmacrop(
+        &mut self,
+        name: Atom,
+        meta: Meta,
+        clauses: Vec<AST>,
+    ) -> Result<AST, ExpandError> {
         let arity = self.calculate_arity_from_clauses(&clauses);
         self.env.set_function(name.clone(), arity);
         let expanded: Result<Vec<_>, _> = clauses.into_iter().map(|c| self.expand(c)).collect();
-        Ok(AST::Defmacrop { name, meta, clauses: expanded? })
+        Ok(AST::Defmacrop {
+            name,
+            meta,
+            clauses: expanded?,
+        })
     }
 
     /// Calculate function arity from its clauses.
@@ -907,7 +1021,7 @@ impl Expander {
                 1
             }
             // For most patterns, count as 1 argument
-            _ => 1
+            _ => 1,
         }
     }
 
@@ -915,18 +1029,35 @@ impl Expander {
         self.env.push_scope(self.atoms.intern("fn"));
         let expanded: Result<Vec<_>, _> = clauses.into_iter().map(|c| self.expand(c)).collect();
         self.env.pop_scope();
-        Ok(AST::Fn { clauses: expanded?, meta })
+        Ok(AST::Fn {
+            clauses: expanded?,
+            meta,
+        })
     }
 
-    fn expand_case(&mut self, expr: AST, clauses: Vec<AST>, meta: Meta) -> Result<AST, ExpandError> {
+    fn expand_case(
+        &mut self,
+        expr: AST,
+        clauses: Vec<AST>,
+        meta: Meta,
+    ) -> Result<AST, ExpandError> {
         let expanded_expr = Box::new(self.expand(expr)?);
         self.env.push_scope(self.atoms.intern("case"));
-        let expanded_clauses: Result<Vec<_>, _> = clauses.into_iter().map(|c| self.expand(c)).collect();
+        let expanded_clauses: Result<Vec<_>, _> =
+            clauses.into_iter().map(|c| self.expand(c)).collect();
         self.env.pop_scope();
-        Ok(AST::Case { expr: expanded_expr, clauses: expanded_clauses?, meta })
+        Ok(AST::Case {
+            expr: expanded_expr,
+            clauses: expanded_clauses?,
+            meta,
+        })
     }
 
-    fn expand_cond(&mut self, clauses: Vec<(Box<AST>, Box<AST>)>, meta: Meta) -> Result<AST, ExpandError> {
+    fn expand_cond(
+        &mut self,
+        clauses: Vec<(Box<AST>, Box<AST>)>,
+        meta: Meta,
+    ) -> Result<AST, ExpandError> {
         self.env.push_scope(self.atoms.intern("cond"));
         let mut expanded_clauses = Vec::new();
         for (cond, body) in clauses {
@@ -935,12 +1066,23 @@ impl Expander {
             expanded_clauses.push((Box::new(expanded_cond), Box::new(expanded_body)));
         }
         self.env.pop_scope();
-        Ok(AST::Cond { clauses: expanded_clauses, meta })
+        Ok(AST::Cond {
+            clauses: expanded_clauses,
+            meta,
+        })
     }
 
-    fn expand_try(&mut self, expr: AST, rescue: Vec<AST>, catch: Vec<AST>, after: Option<Box<AST>>, meta: Meta) -> Result<AST, ExpandError> {
+    fn expand_try(
+        &mut self,
+        expr: AST,
+        rescue: Vec<AST>,
+        catch: Vec<AST>,
+        after: Option<Box<AST>>,
+        meta: Meta,
+    ) -> Result<AST, ExpandError> {
         let expanded_expr = Box::new(self.expand(expr)?);
-        let expanded_rescue: Result<Vec<_>, _> = rescue.into_iter().map(|r| self.expand(r)).collect();
+        let expanded_rescue: Result<Vec<_>, _> =
+            rescue.into_iter().map(|r| self.expand(r)).collect();
         let expanded_catch: Result<Vec<_>, _> = catch.into_iter().map(|c| self.expand(c)).collect();
         let expanded_after = match after {
             Some(a) => Some(Box::new(self.expand(*a)?)),
@@ -955,9 +1097,15 @@ impl Expander {
         })
     }
 
-    fn expand_receive(&mut self, clauses: Vec<AST>, after: Option<(Box<AST>, Box<AST>)>, meta: Meta) -> Result<AST, ExpandError> {
+    fn expand_receive(
+        &mut self,
+        clauses: Vec<AST>,
+        after: Option<(Box<AST>, Box<AST>)>,
+        meta: Meta,
+    ) -> Result<AST, ExpandError> {
         self.env.push_scope(self.atoms.intern("receive"));
-        let expanded_clauses: Result<Vec<_>, _> = clauses.into_iter().map(|c| self.expand(c)).collect();
+        let expanded_clauses: Result<Vec<_>, _> =
+            clauses.into_iter().map(|c| self.expand(c)).collect();
         let expanded_after = match after {
             Some((t, b)) => {
                 let expanded_t = Box::new(self.expand(*t)?);
@@ -967,10 +1115,19 @@ impl Expander {
             None => None,
         };
         self.env.pop_scope();
-        Ok(AST::Receive { clauses: expanded_clauses?, after: expanded_after, meta })
+        Ok(AST::Receive {
+            clauses: expanded_clauses?,
+            after: expanded_after,
+            meta,
+        })
     }
 
-    fn expand_with(&mut self, bindings: Vec<(AST, AST)>, body: AST, meta: Meta) -> Result<AST, ExpandError> {
+    fn expand_with(
+        &mut self,
+        bindings: Vec<(AST, AST)>,
+        body: AST,
+        meta: Meta,
+    ) -> Result<AST, ExpandError> {
         self.env.push_scope(self.atoms.intern("with"));
         let mut expanded_bindings = Vec::new();
         for (pat, val) in bindings {
@@ -980,7 +1137,11 @@ impl Expander {
         }
         let expanded_body = Box::new(self.expand(body)?);
         self.env.pop_scope();
-        Ok(AST::With { bindings: expanded_bindings, body: expanded_body, meta })
+        Ok(AST::With {
+            bindings: expanded_bindings,
+            body: expanded_body,
+            meta,
+        })
     }
 }
 
@@ -1022,14 +1183,20 @@ mod tests {
         let mut env = MacroEnv::new(SourceFileId::new(0));
         let func_atom = Atom::new(1);
         let module = ModuleName::new(vec![Atom::new(2)]);
-        env.add_import(func_atom.clone(), Import {
-            module: module.clone(),
-            alias: None,
-            unaliased: false,
-            only: None,
-            except: None,
-        });
-        assert_eq!(env.lookup_import(&func_atom).map(|i| i.module.clone()), Some(module));
+        env.add_import(
+            func_atom.clone(),
+            Import {
+                module: module.clone(),
+                alias: None,
+                unaliased: false,
+                only: None,
+                except: None,
+            },
+        );
+        assert_eq!(
+            env.lookup_import(&func_atom).map(|i| i.module.clone()),
+            Some(module)
+        );
     }
 
     #[test]
@@ -1293,8 +1460,14 @@ mod tests {
         env.add_alias(alias2.clone(), target2);
         assert!(env.resolve_alias(&alias1).is_some());
         assert!(env.resolve_alias(&alias2).is_some());
-        assert_eq!(env.resolve_alias(&alias1).unwrap().segments()[0], Atom::new(10));
-        assert_eq!(env.resolve_alias(&alias2).unwrap().segments()[0], Atom::new(20));
+        assert_eq!(
+            env.resolve_alias(&alias1).unwrap().segments()[0],
+            Atom::new(10)
+        );
+        assert_eq!(
+            env.resolve_alias(&alias2).unwrap().segments()[0],
+            Atom::new(20)
+        );
     }
 
     #[test]
@@ -1375,20 +1548,26 @@ mod tests {
         let func_atom = Atom::new(1);
         let macro_atom = Atom::new(2);
         let module = ModuleName::new(vec![Atom::new(3)]);
-        env.add_import(func_atom.clone(), Import {
-            module: module.clone(),
-            alias: None,
-            unaliased: false,
-            only: None,
-            except: None,
-        });
-        env.add_import(macro_atom.clone(), Import {
-            module: module.clone(),
-            alias: None,
-            unaliased: false,
-            only: None,
-            except: None,
-        });
+        env.add_import(
+            func_atom.clone(),
+            Import {
+                module: module.clone(),
+                alias: None,
+                unaliased: false,
+                only: None,
+                except: None,
+            },
+        );
+        env.add_import(
+            macro_atom.clone(),
+            Import {
+                module: module.clone(),
+                alias: None,
+                unaliased: false,
+                only: None,
+                except: None,
+            },
+        );
         assert!(env.lookup_import(&func_atom).is_some());
         assert!(env.lookup_import(&macro_atom).is_some());
     }
@@ -1407,20 +1586,26 @@ mod tests {
         let func_atom = Atom::new(1);
         let module1 = ModuleName::new(vec![Atom::new(2)]);
         let module2 = ModuleName::new(vec![Atom::new(3)]);
-        env.add_import(func_atom.clone(), Import {
-            module: module1,
-            alias: None,
-            unaliased: false,
-            only: None,
-            except: None,
-        });
-        env.add_import(func_atom.clone(), Import {
-            module: module2.clone(),
-            alias: None,
-            unaliased: false,
-            only: None,
-            except: None,
-        });
+        env.add_import(
+            func_atom.clone(),
+            Import {
+                module: module1,
+                alias: None,
+                unaliased: false,
+                only: None,
+                except: None,
+            },
+        );
+        env.add_import(
+            func_atom.clone(),
+            Import {
+                module: module2.clone(),
+                alias: None,
+                unaliased: false,
+                only: None,
+                except: None,
+            },
+        );
         let looked_up = env.lookup_import(&func_atom);
         assert!(looked_up.is_some());
         assert_eq!(looked_up.unwrap().module, module2);
@@ -1578,12 +1763,10 @@ mod tests {
         assert!(result.is_ok());
         // Quote should preserve the integer in a Quote node
         match result.unwrap() {
-            AST::Quote { value, .. } => {
-                match *value {
-                    AST::Integer(42) => {},
-                    other => panic!("Expected Integer(42), got {:?}", other),
-                }
-            }
+            AST::Quote { value, .. } => match *value {
+                AST::Integer(42) => {}
+                other => panic!("Expected Integer(42), got {:?}", other),
+            },
             other => panic!("Expected Quote node, got {:?}", other),
         }
     }
@@ -1721,13 +1904,16 @@ mod tests {
         let mut env = MacroEnv::new(SourceFileId::new(0));
         let func_atom = Atom::new(1);
         let module = ModuleName::new(vec![Atom::new(2)]);
-        env.add_import(func_atom.clone(), Import {
-            module: module.clone(),
-            alias: None,
-            unaliased: false,
-            only: None,
-            except: None,
-        });
+        env.add_import(
+            func_atom.clone(),
+            Import {
+                module: module.clone(),
+                alias: None,
+                unaliased: false,
+                only: None,
+                except: None,
+            },
+        );
         // lookup_import should find the imported macro
         let lookup = env.lookup_import(&func_atom);
         assert!(lookup.is_some());
@@ -1831,13 +2017,16 @@ mod tests {
         let mut env = MacroEnv::new(SourceFileId::new(0));
         let func_atom = Atom::new(1);
         let module = ModuleName::new(vec![Atom::new(2)]);
-        env.add_import(func_atom.clone(), Import {
-            module: module.clone(),
-            alias: None,
-            unaliased: false,
-            only: None,
-            except: None,
-        });
+        env.add_import(
+            func_atom.clone(),
+            Import {
+                module: module.clone(),
+                alias: None,
+                unaliased: false,
+                only: None,
+                except: None,
+            },
+        );
         let mut expander = Expander::new(env);
         let ast = AST::Call {
             name: func_atom,
@@ -1848,7 +2037,7 @@ mod tests {
         assert!(result.is_ok());
         // Imported macro should become a remote call
         match result.unwrap() {
-            AST::RemoteCall { .. } => {},
+            AST::RemoteCall { .. } => {}
             other => panic!("Expected RemoteCall for imported macro, got {:?}", other),
         }
     }
@@ -1863,7 +2052,7 @@ mod tests {
         assert!(result.is_ok());
         // Should return a valid AST node
         match result.unwrap() {
-            AST::Integer(42) => {},
+            AST::Integer(42) => {}
             other => panic!("Expected Integer(42), got {:?}", other),
         }
     }
@@ -2078,7 +2267,10 @@ mod tests {
             name: Atom::new(1),
             meta: Meta::default(),
             clauses: vec![AST::Clause {
-                pattern: Box::new(AST::Var { name: Atom::new(2), meta: Meta::default() }),
+                pattern: Box::new(AST::Var {
+                    name: Atom::new(2),
+                    meta: Meta::default(),
+                }),
                 guard: Some(Box::new(AST::Atom(Atom::new(3)))),
                 body: Box::new(AST::Integer(42)),
                 meta: Meta::default(),
@@ -2323,7 +2515,7 @@ mod tests {
         let mut expander = Expander::new(env);
 
         let hidden_doc = AST::Attribute {
-            name: Atom::new(2), // :doc
+            name: Atom::new(2),                       // :doc
             value: Box::new(AST::Atom(Atom::new(4))), // false
             meta: Meta::default(),
         };
@@ -2411,7 +2603,7 @@ mod tests {
 
         let struct_ast = AST::Defstruct {
             fields: vec![
-                (Atom::new(1), None), // name: no default
+                (Atom::new(1), None),                             // name: no default
                 (Atom::new(2), Some(Box::new(AST::Integer(42)))), // age: default 42
             ],
             meta: Meta::default(),
@@ -2428,7 +2620,7 @@ mod tests {
 
         let struct_ast = AST::Defstruct {
             fields: vec![
-                (Atom::new(1), None), // enforced - no default
+                (Atom::new(1), None),                            // enforced - no default
                 (Atom::new(2), Some(Box::new(AST::Integer(0)))), // optional - has default
             ],
             meta: Meta::default(),
@@ -2478,7 +2670,7 @@ mod tests {
         let exception_ast = AST::Defexception {
             fields: vec![
                 (Atom::new(1), Some(Box::new(AST::String("".to_string())))), // message
-                (Atom::new(2), Some(Box::new(AST::Tuple(vec![])))), // __exception__
+                (Atom::new(2), Some(Box::new(AST::Tuple(vec![])))),          // __exception__
             ],
             meta: Meta::default(),
         };
@@ -2496,11 +2688,7 @@ mod tests {
         let struct_ctor = AST::Call {
             name: Atom::new(1),
             meta: Meta::default(),
-            args: vec![
-                AST::Map(vec![
-                    (AST::Atom(Atom::new(2)), AST::Integer(42)),
-                ]),
-            ],
+            args: vec![AST::Map(vec![(AST::Atom(Atom::new(2)), AST::Integer(42))])],
         };
         let result = expander.expand(struct_ctor);
         assert!(result.is_ok());
@@ -2513,9 +2701,7 @@ mod tests {
         let mut expander = Expander::new(env);
 
         let struct_ast = AST::Defstruct {
-            fields: vec![
-                (Atom::new(1), None),
-            ],
+            fields: vec![(Atom::new(1), None)],
             meta: Meta::default(),
         };
         let result = expander.expand(struct_ast);
@@ -2549,7 +2735,7 @@ mod tests {
         let callback_attr = AST::Attribute {
             name: Atom::new(2), // :callback
             value: Box::new(AST::Tuple(vec![
-                AST::Atom(Atom::new(3)), // callback name
+                AST::Atom(Atom::new(3)),                   // callback name
                 AST::Tuple(vec![AST::Atom(Atom::new(4))]), // args
             ])),
             meta: Meta::default(),
@@ -2568,7 +2754,7 @@ mod tests {
             name: Atom::new(3), // :macrocallback
             value: Box::new(AST::Tuple(vec![
                 AST::Atom(Atom::new(4)), // macro name
-                AST::Tuple(vec![]), // args
+                AST::Tuple(vec![]),      // args
             ])),
             meta: Meta::default(),
         };
@@ -2583,7 +2769,7 @@ mod tests {
         let mut expander = Expander::new(env);
 
         let optional_attr = AST::Attribute {
-            name: Atom::new(4), // :optional
+            name: Atom::new(4),                       // :optional
             value: Box::new(AST::Atom(Atom::new(5))), // callback atom
             meta: Meta::default(),
         };
@@ -2861,9 +3047,7 @@ mod tests {
         let mut expander = Expander::new(env);
 
         let struct_ast = AST::Defstruct {
-            fields: vec![
-                (Atom::new(1), None),
-            ],
+            fields: vec![(Atom::new(1), None)],
             meta: Meta::default(),
         };
         let _ = expander.expand(struct_ast);
@@ -3090,11 +3274,7 @@ mod tests {
         let mut expander = Expander::new(env);
 
         let ast = AST::Block {
-            exprs: vec![
-                AST::Integer(1),
-                AST::Integer(2),
-                AST::Integer(3),
-            ],
+            exprs: vec![AST::Integer(1), AST::Integer(2), AST::Integer(3)],
             meta: Meta::default(),
         };
         let result = expander.expand(ast);
@@ -3127,14 +3307,12 @@ mod tests {
 
         let ast = AST::Case {
             expr: Box::new(AST::Atom(Atom::new(1))),
-            clauses: vec![
-                AST::Clause {
-                    pattern: Box::new(AST::Atom(Atom::new(2))),
-                    guard: None,
-                    body: Box::new(AST::Integer(100)),
-                    meta: Meta::default(),
-                },
-            ],
+            clauses: vec![AST::Clause {
+                pattern: Box::new(AST::Atom(Atom::new(2))),
+                guard: None,
+                body: Box::new(AST::Integer(100)),
+                meta: Meta::default(),
+            }],
             meta: Meta::default(),
         };
         let result = expander.expand(ast);
@@ -3152,9 +3330,7 @@ mod tests {
                 segments: vec![Atom::new(1)],
                 meta: Meta::default(),
             }),
-            body: vec![
-                AST::Integer(1),
-            ],
+            body: vec![AST::Integer(1)],
             meta: Meta::default(),
         };
         let result = expander.expand(ast);
@@ -3170,14 +3346,12 @@ mod tests {
         let ast = AST::Def {
             name: Atom::new(1),
             meta: Meta::default(),
-            clauses: vec![
-                AST::Clause {
-                    pattern: Box::new(AST::Tuple(vec![])),
-                    guard: None,
-                    body: Box::new(AST::Integer(42)),
-                    meta: Meta::default(),
-                },
-            ],
+            clauses: vec![AST::Clause {
+                pattern: Box::new(AST::Tuple(vec![])),
+                guard: None,
+                body: Box::new(AST::Integer(42)),
+                meta: Meta::default(),
+            }],
         };
         let result = expander.expand(ast);
         assert!(result.is_ok());
@@ -3196,10 +3370,7 @@ mod tests {
             }),
             name: Atom::new(2),
             meta: Meta::default(),
-            args: vec![
-                AST::Integer(1),
-                AST::Integer(2),
-            ],
+            args: vec![AST::Integer(1), AST::Integer(2)],
         };
         let result = expander.expand(ast);
         assert!(result.is_ok());
@@ -3244,14 +3415,12 @@ mod tests {
         let mut expander = Expander::new(env);
 
         let ast = AST::Receive {
-            clauses: vec![
-                AST::Clause {
-                    pattern: Box::new(AST::Atom(Atom::new(1))),
-                    guard: None,
-                    body: Box::new(AST::Integer(100)),
-                    meta: Meta::default(),
-                },
-            ],
+            clauses: vec![AST::Clause {
+                pattern: Box::new(AST::Atom(Atom::new(1))),
+                guard: None,
+                body: Box::new(AST::Integer(100)),
+                meta: Meta::default(),
+            }],
             after: None,
             meta: Meta::default(),
         };
@@ -3265,10 +3434,7 @@ mod tests {
         let env = MacroEnv::new(SourceFileId::new(0));
         let mut expander = Expander::new(env);
 
-        let ast = AST::Binary(
-            vec![AST::Integer(1), AST::Integer(2)],
-            None,
-        );
+        let ast = AST::Binary(vec![AST::Integer(1), AST::Integer(2)], None);
         let result = expander.expand(ast);
         assert!(result.is_ok());
     }
@@ -3279,9 +3445,7 @@ mod tests {
         let env = MacroEnv::new(SourceFileId::new(0));
         let mut expander = Expander::new(env);
 
-        let ast = AST::Map(vec![
-            (AST::Atom(Atom::new(1)), AST::Integer(100)),
-        ]);
+        let ast = AST::Map(vec![(AST::Atom(Atom::new(1)), AST::Integer(100))]);
         let result = expander.expand(ast);
         assert!(result.is_ok());
     }
@@ -3322,8 +3486,14 @@ mod tests {
         let mut expander = Expander::new(env);
 
         let ast = AST::Tuple(vec![
-            AST::Var { name: Atom::new(1), meta: Meta::default() },
-            AST::Var { name: Atom::new(2), meta: Meta::default() },
+            AST::Var {
+                name: Atom::new(1),
+                meta: Meta::default(),
+            },
+            AST::Var {
+                name: Atom::new(2),
+                meta: Meta::default(),
+            },
         ]);
         let result = expander.expand(ast);
         assert!(result.is_ok());
@@ -3336,8 +3506,14 @@ mod tests {
         let mut expander = Expander::new(env);
 
         let ast = AST::List(vec![
-            AST::Var { name: Atom::new(1), meta: Meta::default() },
-            AST::Var { name: Atom::new(2), meta: Meta::default() },
+            AST::Var {
+                name: Atom::new(1),
+                meta: Meta::default(),
+            },
+            AST::Var {
+                name: Atom::new(2),
+                meta: Meta::default(),
+            },
         ]);
         let result = expander.expand(ast);
         assert!(result.is_ok());
@@ -3352,8 +3528,14 @@ mod tests {
         // Cons pattern via BinaryOp with :: operator
         let ast = AST::BinaryOp {
             op: Atom::new(1), // ::
-            left: Box::new(AST::Var { name: Atom::new(2), meta: Meta::default() }),
-            right: Box::new(AST::Var { name: Atom::new(3), meta: Meta::default() }),
+            left: Box::new(AST::Var {
+                name: Atom::new(2),
+                meta: Meta::default(),
+            }),
+            right: Box::new(AST::Var {
+                name: Atom::new(3),
+                meta: Meta::default(),
+            }),
             meta: Meta::default(),
         };
         let result = expander.expand(ast);
@@ -3366,12 +3548,13 @@ mod tests {
         let env = MacroEnv::new(SourceFileId::new(0));
         let mut expander = Expander::new(env);
 
-        let ast = AST::Map(vec![
-            (
-                AST::Atom(Atom::new(1)),
-                AST::Var { name: Atom::new(2), meta: Meta::default() },
-            ),
-        ]);
+        let ast = AST::Map(vec![(
+            AST::Atom(Atom::new(1)),
+            AST::Var {
+                name: Atom::new(2),
+                meta: Meta::default(),
+            },
+        )]);
         let result = expander.expand(ast);
         assert!(result.is_ok());
     }
@@ -3408,7 +3591,10 @@ mod tests {
         let mut expander = Expander::new(env);
 
         let ast = AST::Match {
-            pattern: Box::new(AST::Var { name: Atom::new(1), meta: Meta::default() }),
+            pattern: Box::new(AST::Var {
+                name: Atom::new(1),
+                meta: Meta::default(),
+            }),
             value: Box::new(AST::Integer(42)),
             meta: Meta::default(),
         };
@@ -3422,10 +3608,7 @@ mod tests {
         let env = MacroEnv::new(SourceFileId::new(0));
         let mut expander = Expander::new(env);
 
-        let ast = AST::Binary(
-            vec![AST::Integer(1), AST::Integer(2)],
-            None,
-        );
+        let ast = AST::Binary(vec![AST::Integer(1), AST::Integer(2)], None);
         let result = expander.expand(ast);
         assert!(result.is_ok());
     }
@@ -3438,7 +3621,10 @@ mod tests {
 
         let ast = AST::BinaryOp {
             op: Atom::new(1), // > operator
-            left: Box::new(AST::Var { name: Atom::new(2), meta: Meta::default() }),
+            left: Box::new(AST::Var {
+                name: Atom::new(2),
+                meta: Meta::default(),
+            }),
             right: Box::new(AST::Integer(0)),
             meta: Meta::default(),
         };
@@ -3534,13 +3720,19 @@ mod tests {
             op: Atom::new(1), // and
             left: Box::new(AST::BinaryOp {
                 op: Atom::new(2), // >
-                left: Box::new(AST::Var { name: Atom::new(3), meta: Meta::default() }),
+                left: Box::new(AST::Var {
+                    name: Atom::new(3),
+                    meta: Meta::default(),
+                }),
                 right: Box::new(AST::Integer(0)),
                 meta: Meta::default(),
             }),
             right: Box::new(AST::BinaryOp {
                 op: Atom::new(4), // <
-                left: Box::new(AST::Var { name: Atom::new(5), meta: Meta::default() }),
+                left: Box::new(AST::Var {
+                    name: Atom::new(5),
+                    meta: Meta::default(),
+                }),
                 right: Box::new(AST::Integer(100)),
                 meta: Meta::default(),
             }),
@@ -3557,10 +3749,16 @@ mod tests {
         let mut expander = Expander::new(env);
 
         let ast = AST::Clause {
-            pattern: Box::new(AST::Var { name: Atom::new(1), meta: Meta::default() }),
+            pattern: Box::new(AST::Var {
+                name: Atom::new(1),
+                meta: Meta::default(),
+            }),
             guard: Some(Box::new(AST::BinaryOp {
                 op: Atom::new(2), // is_integer
-                left: Box::new(AST::Var { name: Atom::new(1), meta: Meta::default() }),
+                left: Box::new(AST::Var {
+                    name: Atom::new(1),
+                    meta: Meta::default(),
+                }),
                 right: Box::new(AST::Tuple(vec![])),
                 meta: Meta::default(),
             })),
@@ -3676,10 +3874,7 @@ mod tests {
             meta: Meta::default(),
             args: vec![
                 AST::Atom(Atom::new(2)),
-                AST::List(vec![
-                    AST::Integer(1),
-                    AST::Integer(2),
-                ]),
+                AST::List(vec![AST::Integer(1), AST::Integer(2)]),
             ],
         };
         let result = expander.expand(ast);
@@ -3712,14 +3907,12 @@ mod tests {
         let mut expander = Expander::new(env);
 
         let ast = AST::Receive {
-            clauses: vec![
-                AST::Clause {
-                    pattern: Box::new(AST::Atom(Atom::new(1))),
-                    guard: None,
-                    body: Box::new(AST::Integer(100)),
-                    meta: Meta::default(),
-                },
-            ],
+            clauses: vec![AST::Clause {
+                pattern: Box::new(AST::Atom(Atom::new(1))),
+                guard: None,
+                body: Box::new(AST::Integer(100)),
+                meta: Meta::default(),
+            }],
             after: None,
             meta: Meta::default(),
         };
@@ -3734,18 +3927,19 @@ mod tests {
         let mut expander = Expander::new(env);
 
         let ast = AST::Receive {
-            clauses: vec![
-                AST::Clause {
-                    pattern: Box::new(AST::Var { name: Atom::new(1), meta: Meta::default() }),
-                    guard: None,
-                    body: Box::new(AST::Var { name: Atom::new(1), meta: Meta::default() }),
+            clauses: vec![AST::Clause {
+                pattern: Box::new(AST::Var {
+                    name: Atom::new(1),
                     meta: Meta::default(),
-                },
-            ],
-            after: Some((
-                Box::new(AST::Integer(5000)),
-                Box::new(AST::Integer(0)),
-            )),
+                }),
+                guard: None,
+                body: Box::new(AST::Var {
+                    name: Atom::new(1),
+                    meta: Meta::default(),
+                }),
+                meta: Meta::default(),
+            }],
+            after: Some((Box::new(AST::Integer(5000)), Box::new(AST::Integer(0)))),
             meta: Meta::default(),
         };
         let result = expander.expand(ast);
@@ -3759,17 +3953,21 @@ mod tests {
         let mut expander = Expander::new(env);
 
         let ast = AST::Receive {
-            clauses: vec![
-                AST::Clause {
-                    pattern: Box::new(AST::Tuple(vec![
-                        AST::Atom(Atom::new(1)),
-                        AST::Var { name: Atom::new(2), meta: Meta::default() },
-                    ])),
-                    guard: None,
-                    body: Box::new(AST::Var { name: Atom::new(2), meta: Meta::default() }),
+            clauses: vec![AST::Clause {
+                pattern: Box::new(AST::Tuple(vec![
+                    AST::Atom(Atom::new(1)),
+                    AST::Var {
+                        name: Atom::new(2),
+                        meta: Meta::default(),
+                    },
+                ])),
+                guard: None,
+                body: Box::new(AST::Var {
+                    name: Atom::new(2),
                     meta: Meta::default(),
-                },
-            ],
+                }),
+                meta: Meta::default(),
+            }],
             after: None,
             meta: Meta::default(),
         };
@@ -3802,14 +4000,12 @@ mod tests {
 
         let ast = AST::Try {
             expr: Box::new(AST::Integer(1)),
-            rescue: vec![
-                AST::Clause {
-                    pattern: Box::new(AST::Atom(Atom::new(1))),
-                    guard: None,
-                    body: Box::new(AST::Integer(2)),
-                    meta: Meta::default(),
-                },
-            ],
+            rescue: vec![AST::Clause {
+                pattern: Box::new(AST::Atom(Atom::new(1))),
+                guard: None,
+                body: Box::new(AST::Integer(2)),
+                meta: Meta::default(),
+            }],
             catch: vec![],
             after: None,
             meta: Meta::default(),
@@ -3827,18 +4023,22 @@ mod tests {
         let ast = AST::Try {
             expr: Box::new(AST::Integer(1)),
             rescue: vec![],
-            catch: vec![
-                AST::Clause {
-                    pattern: Box::new(AST::Tuple(vec![
-                        AST::Atom(Atom::new(1)), // throw
-                        AST::Var { name: Atom::new(2), meta: Meta::default() },
-                        AST::Var { name: Atom::new(3), meta: Meta::default() },
-                    ])),
-                    guard: None,
-                    body: Box::new(AST::Integer(2)),
-                    meta: Meta::default(),
-                },
-            ],
+            catch: vec![AST::Clause {
+                pattern: Box::new(AST::Tuple(vec![
+                    AST::Atom(Atom::new(1)), // throw
+                    AST::Var {
+                        name: Atom::new(2),
+                        meta: Meta::default(),
+                    },
+                    AST::Var {
+                        name: Atom::new(3),
+                        meta: Meta::default(),
+                    },
+                ])),
+                guard: None,
+                body: Box::new(AST::Integer(2)),
+                meta: Meta::default(),
+            }],
             after: None,
             meta: Meta::default(),
         };
@@ -3871,14 +4071,18 @@ mod tests {
 
         let ast = AST::Try {
             expr: Box::new(AST::Integer(1)),
-            rescue: vec![
-                AST::Clause {
-                    pattern: Box::new(AST::Var { name: Atom::new(1), meta: Meta::default() }),
-                    guard: None,
-                    body: Box::new(AST::Var { name: Atom::new(1), meta: Meta::default() }),
+            rescue: vec![AST::Clause {
+                pattern: Box::new(AST::Var {
+                    name: Atom::new(1),
                     meta: Meta::default(),
-                },
-            ],
+                }),
+                guard: None,
+                body: Box::new(AST::Var {
+                    name: Atom::new(1),
+                    meta: Meta::default(),
+                }),
+                meta: Meta::default(),
+            }],
             catch: vec![],
             after: None,
             meta: Meta::default(),
@@ -3910,14 +4114,12 @@ mod tests {
         let ast = AST::Def {
             name: Atom::new(1),
             meta: Meta::default(),
-            clauses: vec![
-                AST::Clause {
-                    pattern: Box::new(AST::Tuple(vec![])),
-                    guard: None,
-                    body: Box::new(AST::Integer(42)),
-                    meta: Meta::default(),
-                },
-            ],
+            clauses: vec![AST::Clause {
+                pattern: Box::new(AST::Tuple(vec![])),
+                guard: None,
+                body: Box::new(AST::Integer(42)),
+                meta: Meta::default(),
+            }],
         };
         let result = expander.expand(ast);
         assert!(result.is_ok());
@@ -3931,8 +4133,14 @@ mod tests {
 
         let ast = AST::Match {
             pattern: Box::new(AST::Tuple(vec![
-                AST::Var { name: Atom::new(1), meta: Meta::default() },
-                AST::Var { name: Atom::new(1), meta: Meta::default() }, // Same var - ok in pattern
+                AST::Var {
+                    name: Atom::new(1),
+                    meta: Meta::default(),
+                },
+                AST::Var {
+                    name: Atom::new(1),
+                    meta: Meta::default(),
+                }, // Same var - ok in pattern
             ])),
             value: Box::new(AST::Tuple(vec![AST::Integer(1), AST::Integer(2)])),
             meta: Meta::default(),
@@ -3948,7 +4156,10 @@ mod tests {
         let mut expander = Expander::new(env);
 
         let ast = AST::Clause {
-            pattern: Box::new(AST::Var { name: Atom::new(1), meta: Meta::default() }),
+            pattern: Box::new(AST::Var {
+                name: Atom::new(1),
+                meta: Meta::default(),
+            }),
             guard: Some(Box::new(AST::BinaryOp {
                 op: Atom::new(1), // and
                 left: Box::new(AST::Atom(Atom::new(2))),
@@ -3970,14 +4181,12 @@ mod tests {
 
         let ast = AST::Case {
             expr: Box::new(AST::Atom(Atom::new(1))),
-            clauses: vec![
-                AST::Clause {
-                    pattern: Box::new(AST::Atom(Atom::new(2))),
-                    guard: None,
-                    body: Box::new(AST::Integer(100)),
-                    meta: Meta::default(),
-                },
-            ],
+            clauses: vec![AST::Clause {
+                pattern: Box::new(AST::Atom(Atom::new(2))),
+                guard: None,
+                body: Box::new(AST::Integer(100)),
+                meta: Meta::default(),
+            }],
             meta: Meta::default(),
         };
         let result = expander.expand(ast);
@@ -3995,20 +4204,16 @@ mod tests {
                 segments: vec![Atom::new(1)],
                 meta: Meta::default(),
             }),
-            body: vec![
-                AST::Def {
-                    name: Atom::new(2),
+            body: vec![AST::Def {
+                name: Atom::new(2),
+                meta: Meta::default(),
+                clauses: vec![AST::Clause {
+                    pattern: Box::new(AST::Tuple(vec![])),
+                    guard: None,
+                    body: Box::new(AST::Integer(42)),
                     meta: Meta::default(),
-                    clauses: vec![
-                        AST::Clause {
-                            pattern: Box::new(AST::Tuple(vec![])),
-                            guard: None,
-                            body: Box::new(AST::Integer(42)),
-                            meta: Meta::default(),
-                        },
-                    ],
-                },
-            ],
+                }],
+            }],
             meta: Meta::default(),
         };
         let result = expander.expand(ast);
@@ -4023,10 +4228,7 @@ mod tests {
 
         // After a literal, subsequent expressions are unreachable
         let ast = AST::Block {
-            exprs: vec![
-                AST::Integer(1),
-                AST::Integer(2),
-            ],
+            exprs: vec![AST::Integer(1), AST::Integer(2)],
             meta: Meta::default(),
         };
         let result = expander.expand(ast);
@@ -4089,14 +4291,12 @@ mod tests {
         let mut expander = Expander::new(env);
 
         let ast = AST::Block {
-            exprs: vec![
-                AST::BinaryOp {
-                    op: Atom::new(1),
-                    left: Box::new(AST::Integer(1)),
-                    right: Box::new(AST::Integer(2)),
-                    meta: Meta::default(),
-                },
-            ],
+            exprs: vec![AST::BinaryOp {
+                op: Atom::new(1),
+                left: Box::new(AST::Integer(1)),
+                right: Box::new(AST::Integer(2)),
+                meta: Meta::default(),
+            }],
             meta: Meta::default(),
         };
         let result = expander.expand(ast);
@@ -4136,20 +4336,16 @@ mod tests {
                 segments: vec![Atom::new(1)],
                 meta: Meta::default(),
             }),
-            body: vec![
-                AST::Def {
-                    name: Atom::new(2),
+            body: vec![AST::Def {
+                name: Atom::new(2),
+                meta: Meta::default(),
+                clauses: vec![AST::Clause {
+                    pattern: Box::new(AST::Tuple(vec![])),
+                    guard: None,
+                    body: Box::new(AST::Integer(42)),
                     meta: Meta::default(),
-                    clauses: vec![
-                        AST::Clause {
-                            pattern: Box::new(AST::Tuple(vec![])),
-                            guard: None,
-                            body: Box::new(AST::Integer(42)),
-                            meta: Meta::default(),
-                        },
-                    ],
-                },
-            ],
+                }],
+            }],
             meta: Meta::default(),
         };
         let result = expander.expand(ast);
@@ -4165,14 +4361,12 @@ mod tests {
         let ast = AST::Def {
             name: Atom::new(1),
             meta: Meta::default(),
-            clauses: vec![
-                AST::Clause {
-                    pattern: Box::new(AST::Tuple(vec![])),
-                    guard: None,
-                    body: Box::new(AST::Integer(42)),
-                    meta: Meta::default(),
-                },
-            ],
+            clauses: vec![AST::Clause {
+                pattern: Box::new(AST::Tuple(vec![])),
+                guard: None,
+                body: Box::new(AST::Integer(42)),
+                meta: Meta::default(),
+            }],
         };
         let result = expander.expand(ast);
         assert!(result.is_ok());
@@ -4189,13 +4383,11 @@ mod tests {
                 segments: vec![Atom::new(1)],
                 meta: Meta::default(),
             }),
-            body: vec![
-                AST::Attribute {
-                    name: Atom::new(2),
-                    value: Box::new(AST::String("value".to_string())),
-                    meta: Meta::default(),
-                },
-            ],
+            body: vec![AST::Attribute {
+                name: Atom::new(2),
+                value: Box::new(AST::String("value".to_string())),
+                meta: Meta::default(),
+            }],
             meta: Meta::default(),
         };
         let result = expander.expand(ast);
@@ -4241,14 +4433,12 @@ mod tests {
         let ast = AST::Def {
             name: Atom::new(1),
             meta: Meta::default(),
-            clauses: vec![
-                AST::Clause {
-                    pattern: Box::new(AST::Tuple(vec![])),
-                    guard: None,
-                    body: Box::new(AST::Integer(42)),
-                    meta: Meta::default(),
-                },
-            ],
+            clauses: vec![AST::Clause {
+                pattern: Box::new(AST::Tuple(vec![])),
+                guard: None,
+                body: Box::new(AST::Integer(42)),
+                meta: Meta::default(),
+            }],
         };
         let result = expander.expand(ast);
         assert!(result.is_ok());
@@ -4281,14 +4471,12 @@ mod tests {
         let ast = AST::Def {
             name: Atom::new(1),
             meta: Meta::default(),
-            clauses: vec![
-                AST::Clause {
-                    pattern: Box::new(AST::Tuple(vec![])),
-                    guard: None,
-                    body: Box::new(AST::Integer(42)),
-                    meta: Meta::default(),
-                },
-            ],
+            clauses: vec![AST::Clause {
+                pattern: Box::new(AST::Tuple(vec![])),
+                guard: None,
+                body: Box::new(AST::Integer(42)),
+                meta: Meta::default(),
+            }],
         };
         let result = expander.expand(ast);
         assert!(result.is_ok());
@@ -4351,14 +4539,12 @@ mod tests {
         let ast = AST::Def {
             name: Atom::new(1),
             meta: Meta::default(),
-            clauses: vec![
-                AST::Clause {
-                    pattern: Box::new(AST::Tuple(vec![])),
-                    guard: None,
-                    body: Box::new(AST::Integer(42)),
-                    meta: Meta::default(),
-                },
-            ],
+            clauses: vec![AST::Clause {
+                pattern: Box::new(AST::Tuple(vec![])),
+                guard: None,
+                body: Box::new(AST::Integer(42)),
+                meta: Meta::default(),
+            }],
         };
         let result = expander.expand(ast);
         assert!(result.is_ok());
@@ -4372,14 +4558,12 @@ mod tests {
 
         let ast = AST::Case {
             expr: Box::new(AST::Atom(Atom::new(1))),
-            clauses: vec![
-                AST::Clause {
-                    pattern: Box::new(AST::Atom(Atom::new(2))),
-                    guard: None,
-                    body: Box::new(AST::Integer(100)),
-                    meta: Meta::default(),
-                },
-            ],
+            clauses: vec![AST::Clause {
+                pattern: Box::new(AST::Atom(Atom::new(2))),
+                guard: None,
+                body: Box::new(AST::Integer(100)),
+                meta: Meta::default(),
+            }],
             meta: Meta::default(),
         };
         let result = expander.expand(ast);
@@ -4409,13 +4593,11 @@ mod tests {
                 segments: vec![Atom::new(1)],
                 meta: Meta::default(),
             }),
-            body: vec![
-                AST::Call {
-                    name: Atom::new(2),
-                    meta: Meta::default(),
-                    args: vec![],
-                },
-            ],
+            body: vec![AST::Call {
+                name: Atom::new(2),
+                meta: Meta::default(),
+                args: vec![],
+            }],
             meta: Meta::default(),
         };
         let result = expander.expand(ast);
@@ -4500,14 +4682,12 @@ mod tests {
         let ast = AST::Def {
             name: Atom::new(1),
             meta: Meta::default(),
-            clauses: vec![
-                AST::Clause {
-                    pattern: Box::new(AST::Tuple(vec![])),
-                    guard: None,
-                    body: Box::new(AST::Integer(42)),
-                    meta: Meta::default(),
-                },
-            ],
+            clauses: vec![AST::Clause {
+                pattern: Box::new(AST::Tuple(vec![])),
+                guard: None,
+                body: Box::new(AST::Integer(42)),
+                meta: Meta::default(),
+            }],
         };
         let result = expander.expand(ast);
         assert!(result.is_ok());
@@ -4589,14 +4769,12 @@ mod tests {
         let ast = AST::Def {
             name: Atom::new(1),
             meta: Meta::default(),
-            clauses: vec![
-                AST::Clause {
-                    pattern: Box::new(AST::Tuple(vec![])),
-                    guard: None,
-                    body: Box::new(AST::Integer(42)),
-                    meta: Meta::default(),
-                },
-            ],
+            clauses: vec![AST::Clause {
+                pattern: Box::new(AST::Tuple(vec![])),
+                guard: None,
+                body: Box::new(AST::Integer(42)),
+                meta: Meta::default(),
+            }],
         };
         let result = expander.expand(ast);
         assert!(result.is_ok());
@@ -4609,13 +4787,22 @@ mod tests {
         let mut expander = Expander::new(env);
 
         let ast = AST::Clause {
-            pattern: Box::new(AST::Var { name: Atom::new(1), meta: Meta::default() }),
+            pattern: Box::new(AST::Var {
+                name: Atom::new(1),
+                meta: Meta::default(),
+            }),
             guard: Some(Box::new(AST::Call {
                 name: Atom::new(2), // is_list
                 meta: Meta::default(),
-                args: vec![AST::Var { name: Atom::new(1), meta: Meta::default() }],
+                args: vec![AST::Var {
+                    name: Atom::new(1),
+                    meta: Meta::default(),
+                }],
             })),
-            body: Box::new(AST::Var { name: Atom::new(1), meta: Meta::default() }),
+            body: Box::new(AST::Var {
+                name: Atom::new(1),
+                meta: Meta::default(),
+            }),
             meta: Meta::default(),
         };
         let result = expander.expand(ast);
@@ -4655,14 +4842,12 @@ mod tests {
 
         let ast = AST::Case {
             expr: Box::new(AST::Atom(Atom::new(1))),
-            clauses: vec![
-                AST::Clause {
-                    pattern: Box::new(AST::Atom(Atom::new(2))),
-                    guard: None,
-                    body: Box::new(AST::Integer(100)),
-                    meta: Meta::default(),
-                },
-            ],
+            clauses: vec![AST::Clause {
+                pattern: Box::new(AST::Atom(Atom::new(2))),
+                guard: None,
+                body: Box::new(AST::Integer(100)),
+                meta: Meta::default(),
+            }],
             meta: Meta::default(),
         };
         let result = expander.expand(ast);
@@ -4676,14 +4861,12 @@ mod tests {
         let mut expander = Expander::new(env);
 
         let ast = AST::Fn {
-            clauses: vec![
-                AST::Clause {
-                    pattern: Box::new(AST::Tuple(vec![])),
-                    guard: None,
-                    body: Box::new(AST::Integer(42)),
-                    meta: Meta::default(),
-                },
-            ],
+            clauses: vec![AST::Clause {
+                pattern: Box::new(AST::Tuple(vec![])),
+                guard: None,
+                body: Box::new(AST::Integer(42)),
+                meta: Meta::default(),
+            }],
             meta: Meta::default(),
         };
         let result = expander.expand(ast);
@@ -4713,14 +4896,12 @@ mod tests {
         let mut expander = Expander::new(env);
 
         let ast = AST::Receive {
-            clauses: vec![
-                AST::Clause {
-                    pattern: Box::new(AST::Atom(Atom::new(1))),
-                    guard: None,
-                    body: Box::new(AST::Integer(100)),
-                    meta: Meta::default(),
-                },
-            ],
+            clauses: vec![AST::Clause {
+                pattern: Box::new(AST::Atom(Atom::new(1))),
+                guard: None,
+                body: Box::new(AST::Integer(100)),
+                meta: Meta::default(),
+            }],
             after: None,
             meta: Meta::default(),
         };
@@ -4775,11 +4956,7 @@ mod tests {
         let env = MacroEnv::new(SourceFileId::new(0));
         let mut expander = Expander::new(env);
 
-        let ast = AST::List(vec![
-            AST::Integer(1),
-            AST::Integer(2),
-            AST::Integer(3),
-        ]);
+        let ast = AST::List(vec![AST::Integer(1), AST::Integer(2), AST::Integer(3)]);
         let result = expander.expand(ast);
         assert!(result.is_ok());
     }
@@ -5001,9 +5178,7 @@ mod tests {
         let env = MacroEnv::new(SourceFileId::new(0));
         let mut expander = Expander::new(env);
 
-        let ast = AST::Map(vec![
-            (AST::Atom(Atom::new(1)), AST::Integer(100)),
-        ]);
+        let ast = AST::Map(vec![(AST::Atom(Atom::new(1)), AST::Integer(100))]);
         let result = expander.expand(ast);
         assert!(result.is_ok());
     }
@@ -5107,14 +5282,12 @@ mod tests {
         let ast = AST::Def {
             name: Atom::new(1),
             meta: Meta::default(),
-            clauses: vec![
-                AST::Clause {
-                    pattern: Box::new(AST::Tuple(vec![])),
-                    guard: None,
-                    body: Box::new(AST::Integer(42)),
-                    meta: Meta::default(),
-                },
-            ],
+            clauses: vec![AST::Clause {
+                pattern: Box::new(AST::Tuple(vec![])),
+                guard: None,
+                body: Box::new(AST::Integer(42)),
+                meta: Meta::default(),
+            }],
         };
         let result = expander.expand(ast);
         assert!(result.is_ok());
@@ -5248,14 +5421,12 @@ mod tests {
         let ast = AST::Def {
             name: Atom::new(1),
             meta: Meta::default(),
-            clauses: vec![
-                AST::Clause {
-                    pattern: Box::new(AST::Tuple(vec![])),
-                    guard: None,
-                    body: Box::new(AST::Integer(42)),
-                    meta: Meta::default(),
-                },
-            ],
+            clauses: vec![AST::Clause {
+                pattern: Box::new(AST::Tuple(vec![])),
+                guard: None,
+                body: Box::new(AST::Integer(42)),
+                meta: Meta::default(),
+            }],
         };
         let result = expander.expand(ast);
         assert!(result.is_ok());
@@ -5323,7 +5494,10 @@ mod tests {
         let mut expander = Expander::new(env);
 
         let ast = AST::Map(vec![
-            (AST::Atom(Atom::new(1)), AST::String("my_project".to_string())), // name
+            (
+                AST::Atom(Atom::new(1)),
+                AST::String("my_project".to_string()),
+            ), // name
         ]);
         let result = expander.expand(ast);
         assert!(result.is_ok());
@@ -5348,14 +5522,13 @@ mod tests {
         let env = MacroEnv::new(SourceFileId::new(0));
         let mut expander = Expander::new(env);
 
-        let ast = AST::Map(vec![
-            (AST::Atom(Atom::new(1)), AST::List(vec![
-                AST::Tuple(vec![
-                    AST::Atom(Atom::new(2)),
-                    AST::String("~> 1.0".to_string()),
-                ]),
-            ])),
-        ]);
+        let ast = AST::Map(vec![(
+            AST::Atom(Atom::new(1)),
+            AST::List(vec![AST::Tuple(vec![
+                AST::Atom(Atom::new(2)),
+                AST::String("~> 1.0".to_string()),
+            ])]),
+        )]);
         let result = expander.expand(ast);
         assert!(result.is_ok());
     }
@@ -5393,9 +5566,10 @@ mod tests {
         let env = MacroEnv::new(SourceFileId::new(0));
         let mut expander = Expander::new(env);
 
-        let ast = AST::Map(vec![
-            (AST::Atom(Atom::new(1)), AST::String("src".to_string())),
-        ]);
+        let ast = AST::Map(vec![(
+            AST::Atom(Atom::new(1)),
+            AST::String("src".to_string()),
+        )]);
         let result = expander.expand(ast);
         assert!(result.is_ok());
     }
@@ -5422,15 +5596,13 @@ mod tests {
                 segments: vec![Atom::new(1)],
                 meta: Meta::default(),
             }),
-            body: vec![
-                AST::AliasExpr {
-                    arg: Box::new(AST::Alias {
-                        segments: vec![Atom::new(2)],
-                        meta: Meta::default(),
-                    }),
+            body: vec![AST::AliasExpr {
+                arg: Box::new(AST::Alias {
+                    segments: vec![Atom::new(2)],
                     meta: Meta::default(),
-                },
-            ],
+                }),
+                meta: Meta::default(),
+            }],
             meta: Meta::default(),
         };
         let result = expander.expand(ast);
@@ -5472,7 +5644,10 @@ mod tests {
             AST::Atom(Atom::new(1)),
             AST::Map(vec![
                 (AST::Atom(Atom::new(2)), AST::String("path".to_string())),
-                (AST::Atom(Atom::new(3)), AST::String("./deps/foo".to_string())),
+                (
+                    AST::Atom(Atom::new(3)),
+                    AST::String("./deps/foo".to_string()),
+                ),
             ]),
         ]);
         let result = expander.expand(ast);
@@ -5485,9 +5660,10 @@ mod tests {
         let env = MacroEnv::new(SourceFileId::new(0));
         let mut expander = Expander::new(env);
 
-        let ast = AST::Map(vec![
-            (AST::Atom(Atom::new(1)), AST::String("project".to_string())),
-        ]);
+        let ast = AST::Map(vec![(
+            AST::Atom(Atom::new(1)),
+            AST::String("project".to_string()),
+        )]);
         let result = expander.expand(ast);
         assert!(result.is_ok());
     }
@@ -5534,14 +5710,12 @@ mod tests {
         let ast = AST::Def {
             name: Atom::new(1),
             meta: Meta::default(),
-            clauses: vec![
-                AST::Clause {
-                    pattern: Box::new(AST::Tuple(vec![])),
-                    guard: None,
-                    body: Box::new(AST::Integer(42)),
-                    meta: Meta::default(),
-                },
-            ],
+            clauses: vec![AST::Clause {
+                pattern: Box::new(AST::Tuple(vec![])),
+                guard: None,
+                body: Box::new(AST::Integer(42)),
+                meta: Meta::default(),
+            }],
         };
         let result = expander.expand(ast);
         assert!(result.is_ok());
@@ -5683,14 +5857,12 @@ mod tests {
         let ast = AST::Def {
             name: Atom::new(1),
             meta: Meta::default(),
-            clauses: vec![
-                AST::Clause {
-                    pattern: Box::new(AST::Tuple(vec![])),
-                    guard: None,
-                    body: Box::new(AST::Integer(42)),
-                    meta: Meta::default(),
-                },
-            ],
+            clauses: vec![AST::Clause {
+                pattern: Box::new(AST::Tuple(vec![])),
+                guard: None,
+                body: Box::new(AST::Integer(42)),
+                meta: Meta::default(),
+            }],
         };
         let result = expander.expand(ast);
         assert!(result.is_ok());
@@ -5753,11 +5925,7 @@ mod tests {
         let env = MacroEnv::new(SourceFileId::new(0));
         let mut expander = Expander::new(env);
 
-        let ast = AST::List(vec![
-            AST::Integer(1),
-            AST::Integer(2),
-            AST::Integer(3),
-        ]);
+        let ast = AST::List(vec![AST::Integer(1), AST::Integer(2), AST::Integer(3)]);
         let result = expander.expand(ast);
         assert!(result.is_ok());
     }
@@ -5768,10 +5936,7 @@ mod tests {
         let env = MacroEnv::new(SourceFileId::new(0));
         let mut expander = Expander::new(env);
 
-        let ast = AST::Tuple(vec![
-            AST::Atom(Atom::new(1)),
-            AST::Atom(Atom::new(2)),
-        ]);
+        let ast = AST::Tuple(vec![AST::Atom(Atom::new(1)), AST::Atom(Atom::new(2))]);
         let result = expander.expand(ast);
         assert!(result.is_ok());
     }

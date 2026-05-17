@@ -97,114 +97,49 @@ impl Formatter {
     fn format_node(&self, node: &CSTNode) -> String {
         let leading = self.format_trivia(node.leading_trivia());
         let content = match &node.kind {
-            CSTKind::SourceFile => {
-                self.format_children(node, "")
-            }
-            CSTKind::Expression => {
-                self.format_children(node, "")
-            }
-            CSTKind::Identifier => {
-                node.value.clone().unwrap_or_default()
-            }
-            CSTKind::Integer | CSTKind::Float => {
-                node.value.clone().unwrap_or_default()
-            }
+            CSTKind::SourceFile => self.format_children(node, ""),
+            CSTKind::Expression => self.format_children(node, ""),
+            CSTKind::Identifier => node.value.clone().unwrap_or_default(),
+            CSTKind::Integer | CSTKind::Float => node.value.clone().unwrap_or_default(),
             CSTKind::String => {
-                format!("\"{}\"", node.value.clone().unwrap_or_default().trim_matches('"'))
+                format!(
+                    "\"{}\"",
+                    node.value.clone().unwrap_or_default().trim_matches('"')
+                )
             }
-            CSTKind::Atom => {
-                node.value.clone().unwrap_or_default()
-            }
+            CSTKind::Atom => node.value.clone().unwrap_or_default(),
             CSTKind::KeywordDef | CSTKind::KeywordDefp | CSTKind::KeywordDefmacro => {
                 self.format_keyword_def(node)
             }
-            CSTKind::KeywordDo => {
-                " do".to_string()
-            }
-            CSTKind::KeywordEnd => {
-                "end".to_string()
-            }
-            CSTKind::KeywordDefmodule => {
-                self.format_defmodule(node)
-            }
-            CSTKind::LeftParen => {
-                "(".to_string()
-            }
-            CSTKind::RightParen => {
-                ")".to_string()
-            }
-            CSTKind::LeftBracket => {
-                "[".to_string()
-            }
-            CSTKind::RightBracket => {
-                "]".to_string()
-            }
-            CSTKind::LeftBrace => {
-                "{".to_string()
-            }
-            CSTKind::RightBrace => {
-                "}".to_string()
-            }
-            CSTKind::Comma => {
-                ", ".to_string()
-            }
-            CSTKind::Dot => {
-                ".".to_string()
-            }
-            CSTKind::DotDot => {
-                "..".to_string()
-            }
-            CSTKind::Colon => {
-                ": ".to_string()
-            }
-            CSTKind::Pipe => {
-                " |> ".to_string()
-            }
-            CSTKind::Plus => {
-                " + ".to_string()
-            }
-            CSTKind::Minus => {
-                " - ".to_string()
-            }
-            CSTKind::Star => {
-                " * ".to_string()
-            }
-            CSTKind::Slash => {
-                " / ".to_string()
-            }
-            CSTKind::Equal => {
-                " == ".to_string()
-            }
-            CSTKind::NotEqual => {
-                " != ".to_string()
-            }
-            CSTKind::Capture => {
-                " -> ".to_string()
-            }
-            CSTKind::When => {
-                " when ".to_string()
-            }
-            CSTKind::And => {
-                " and ".to_string()
-            }
-            CSTKind::Or => {
-                " or ".to_string()
-            }
-            CSTKind::Eof => {
-                String::new()
-            }
-            CSTKind::Newline => {
-                "\n".to_string()
-            }
-            CSTKind::ModuleDefinition => {
-                self.format_module_def(node)
-            }
-            CSTKind::FunctionDefinition => {
-                self.format_function_def(node)
-            }
-            _ => {
-                self.format_children(node, "")
-            }
+            CSTKind::KeywordDo => " do".to_string(),
+            CSTKind::KeywordEnd => "end".to_string(),
+            CSTKind::KeywordDefmodule => self.format_defmodule(node),
+            CSTKind::LeftParen => "(".to_string(),
+            CSTKind::RightParen => ")".to_string(),
+            CSTKind::LeftBracket => "[".to_string(),
+            CSTKind::RightBracket => "]".to_string(),
+            CSTKind::LeftBrace => "{".to_string(),
+            CSTKind::RightBrace => "}".to_string(),
+            CSTKind::Comma => ", ".to_string(),
+            CSTKind::Dot => ".".to_string(),
+            CSTKind::DotDot => "..".to_string(),
+            CSTKind::Colon => ": ".to_string(),
+            CSTKind::Pipe => " |> ".to_string(),
+            CSTKind::Plus => " + ".to_string(),
+            CSTKind::Minus => " - ".to_string(),
+            CSTKind::Star => " * ".to_string(),
+            CSTKind::Slash => " / ".to_string(),
+            CSTKind::Equal => " == ".to_string(),
+            CSTKind::NotEqual => " != ".to_string(),
+            CSTKind::Capture => " -> ".to_string(),
+            CSTKind::When => " when ".to_string(),
+            CSTKind::And => " and ".to_string(),
+            CSTKind::Or => " or ".to_string(),
+            CSTKind::Eof => String::new(),
+            CSTKind::Newline => "\n".to_string(),
+            CSTKind::ModuleDefinition => self.format_module_def(node),
+            CSTKind::FunctionDefinition => self.format_function_def(node),
+            _ => self.format_children(node, ""),
         };
         format!("{}{}", leading, content)
     }
@@ -294,7 +229,10 @@ pub fn format_with_config(source: &str, config: FormatConfig) -> FormatResult {
 
 /// Check if source is already formatted.
 pub fn is_formatted(source: &str) -> bool {
-    Formatter::new(source).format_check().unwrap_or(None).is_none()
+    Formatter::new(source)
+        .format_check()
+        .unwrap_or(None)
+        .is_none()
 }
 
 #[cfg(test)]

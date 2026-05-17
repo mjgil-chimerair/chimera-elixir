@@ -259,14 +259,18 @@ impl LSPServer {
         match parser.parse_source() {
             Ok(ast) => {
                 let symbols = self.extract_symbols(&ast, uri);
-                self.parsed_docs.insert(uri.to_string(), ParsedDocument { ast, symbols });
+                self.parsed_docs
+                    .insert(uri.to_string(), ParsedDocument { ast, symbols });
             }
             Err(_) => {
                 // Store empty parsed doc on error
-                self.parsed_docs.insert(uri.to_string(), ParsedDocument {
-                    ast: Vec::new(),
-                    symbols: Vec::new(),
-                });
+                self.parsed_docs.insert(
+                    uri.to_string(),
+                    ParsedDocument {
+                        ast: Vec::new(),
+                        symbols: Vec::new(),
+                    },
+                );
             }
         }
     }
@@ -281,14 +285,21 @@ impl LSPServer {
     }
 
     /// Recursively extract symbols from an AST node.
-    fn extract_symbols_from_node(&self, node: &chimera_ast::AST, uri: &str, symbols: &mut Vec<SymbolDefinition>) {
+    fn extract_symbols_from_node(
+        &self,
+        node: &chimera_ast::AST,
+        uri: &str,
+        symbols: &mut Vec<SymbolDefinition>,
+    ) {
         match node {
             chimera_ast::AST::Defmodule { name, body, meta } => {
                 // Extract module name
                 let name_str = match name.as_ref() {
-                    chimera_ast::AST::Alias { segments, .. } => {
-                        segments.iter().map(|a| format!("atom_{}", a.clone().id())).collect::<Vec<_>>().join(".")
-                    }
+                    chimera_ast::AST::Alias { segments, .. } => segments
+                        .iter()
+                        .map(|a| format!("atom_{}", a.clone().id()))
+                        .collect::<Vec<_>>()
+                        .join("."),
                     _ => "Elixir.Module".to_string(),
                 };
                 let range = self.meta_to_range(meta);
@@ -303,7 +314,12 @@ impl LSPServer {
                     self.extract_symbols_from_node(item, uri, symbols);
                 }
             }
-            chimera_ast::AST::Def { name, clauses, meta, .. } => {
+            chimera_ast::AST::Def {
+                name,
+                clauses,
+                meta,
+                ..
+            } => {
                 let range = self.meta_to_range(meta);
                 symbols.push(SymbolDefinition {
                     name: format!("def {}", name.clone().id()),
@@ -315,7 +331,12 @@ impl LSPServer {
                     self.extract_symbols_from_node(clause, uri, symbols);
                 }
             }
-            chimera_ast::AST::Defp { name, clauses, meta, .. } => {
+            chimera_ast::AST::Defp {
+                name,
+                clauses,
+                meta,
+                ..
+            } => {
                 let range = self.meta_to_range(meta);
                 symbols.push(SymbolDefinition {
                     name: format!("defp {}", name.clone().id()),
@@ -327,7 +348,12 @@ impl LSPServer {
                     self.extract_symbols_from_node(clause, uri, symbols);
                 }
             }
-            chimera_ast::AST::Defmacro { name, clauses, meta, .. } => {
+            chimera_ast::AST::Defmacro {
+                name,
+                clauses,
+                meta,
+                ..
+            } => {
                 let range = self.meta_to_range(meta);
                 symbols.push(SymbolDefinition {
                     name: format!("defmacro {}", name.clone().id()),
@@ -339,7 +365,12 @@ impl LSPServer {
                     self.extract_symbols_from_node(clause, uri, symbols);
                 }
             }
-            chimera_ast::AST::Defmacrop { name, clauses, meta, .. } => {
+            chimera_ast::AST::Defmacrop {
+                name,
+                clauses,
+                meta,
+                ..
+            } => {
                 let range = self.meta_to_range(meta);
                 symbols.push(SymbolDefinition {
                     name: format!("defmacrop {}", name.clone().id()),
@@ -369,7 +400,13 @@ impl LSPServer {
                     self.extract_symbols_from_node(clause, uri, symbols);
                 }
             }
-            chimera_ast::AST::Try { expr, rescue, catch, after, .. } => {
+            chimera_ast::AST::Try {
+                expr,
+                rescue,
+                catch,
+                after,
+                ..
+            } => {
                 self.extract_symbols_from_node(expr, uri, symbols);
                 for r in rescue {
                     self.extract_symbols_from_node(r, uri, symbols);
@@ -431,7 +468,12 @@ impl LSPServer {
                 self.extract_symbols_from_node(pattern, uri, symbols);
                 self.extract_symbols_from_node(value, uri, symbols);
             }
-            chimera_ast::AST::Clause { pattern, guard, body, .. } => {
+            chimera_ast::AST::Clause {
+                pattern,
+                guard,
+                body,
+                ..
+            } => {
                 self.extract_symbols_from_node(pattern, uri, symbols);
                 if let Some(g) = guard {
                     self.extract_symbols_from_node(g, uri, symbols);
@@ -522,7 +564,9 @@ impl LSPServer {
                         chimera_parser::ParseError::ExpectedToken(_, _, _) => Severity::Error,
                         chimera_parser::ParseError::UnterminatedExpression(_) => Severity::Error,
                         chimera_parser::ParseError::InvalidExpression(_) => Severity::Error,
-                        chimera_parser::ParseError::OperatorPrecedenceError(_, _) => Severity::Error,
+                        chimera_parser::ParseError::OperatorPrecedenceError(_, _) => {
+                            Severity::Error
+                        }
                         chimera_parser::ParseError::TooManyErrors(_) => Severity::Error,
                         chimera_parser::ParseError::MissingToken(_, _) => Severity::Warning,
                         chimera_parser::ParseError::SkippedToken(_, _) => Severity::Warning,
@@ -671,7 +715,12 @@ impl LSPServer {
     }
 
     /// Find identifier at a given position in the AST.
-    fn find_identifier_at_position(&self, _uri: &str, position: Position, ast: &[chimera_ast::AST]) -> Option<String> {
+    fn find_identifier_at_position(
+        &self,
+        _uri: &str,
+        position: Position,
+        ast: &[chimera_ast::AST],
+    ) -> Option<String> {
         for node in ast {
             if let Some(ident) = self.find_identifier_in_node(node, position) {
                 return Some(ident);
@@ -681,7 +730,11 @@ impl LSPServer {
     }
 
     /// Recursively search for identifier at position.
-    fn find_identifier_in_node(&self, node: &chimera_ast::AST, position: Position) -> Option<String> {
+    fn find_identifier_in_node(
+        &self,
+        node: &chimera_ast::AST,
+        position: Position,
+    ) -> Option<String> {
         // Check if this node contains the position
         let node_range = self.ast_node_to_range(node);
         if !Self::position_in_range(position, node_range) {
@@ -701,8 +754,10 @@ impl LSPServer {
                     return Some(format!("var_{}", name.clone().id()));
                 }
             }
-            chimera_ast::AST::Def { name, meta, .. } | chimera_ast::AST::Defp { name, meta, .. }
-            | chimera_ast::AST::Defmacro { name, meta, .. } | chimera_ast::AST::Defmacrop { name, meta, .. } => {
+            chimera_ast::AST::Def { name, meta, .. }
+            | chimera_ast::AST::Defp { name, meta, .. }
+            | chimera_ast::AST::Defmacro { name, meta, .. }
+            | chimera_ast::AST::Defmacrop { name, meta, .. } => {
                 let range = self.meta_to_range(meta);
                 if Self::position_in_range(position, range) {
                     return Some(format!("fn_{}", name.clone().id()));
@@ -788,14 +843,16 @@ impl LSPServer {
             None => return Vec::new(),
         };
 
-        parsed.symbols.iter().map(|sym| {
-            DocumentSymbol {
+        parsed
+            .symbols
+            .iter()
+            .map(|sym| DocumentSymbol {
                 name: sym.name.clone(),
                 kind: sym.kind,
                 range: sym.range,
                 children: Vec::new(),
-            }
-        }).collect()
+            })
+            .collect()
     }
 }
 
@@ -821,7 +878,10 @@ mod tests {
         let mut server = LSPServer::new();
         server.did_open("test.ex".to_string(), "defmodule Foo do end".to_string());
         server.did_change("test.ex", "defmodule Bar do end".to_string());
-        assert_eq!(server.documents.get("test.ex"), Some(&"defmodule Bar do end".to_string()));
+        assert_eq!(
+            server.documents.get("test.ex"),
+            Some(&"defmodule Bar do end".to_string())
+        );
     }
 
     #[test]
@@ -890,10 +950,22 @@ mod tests {
 
     #[test]
     fn test_diagnostic_severity_conversion() {
-        assert_eq!(DiagnosticSeverity::from(Severity::Error), DiagnosticSeverity::Error);
-        assert_eq!(DiagnosticSeverity::from(Severity::Warning), DiagnosticSeverity::Warning);
-        assert_eq!(DiagnosticSeverity::from(Severity::Information), DiagnosticSeverity::Information);
-        assert_eq!(DiagnosticSeverity::from(Severity::Hint), DiagnosticSeverity::Hint);
+        assert_eq!(
+            DiagnosticSeverity::from(Severity::Error),
+            DiagnosticSeverity::Error
+        );
+        assert_eq!(
+            DiagnosticSeverity::from(Severity::Warning),
+            DiagnosticSeverity::Warning
+        );
+        assert_eq!(
+            DiagnosticSeverity::from(Severity::Information),
+            DiagnosticSeverity::Information
+        );
+        assert_eq!(
+            DiagnosticSeverity::from(Severity::Hint),
+            DiagnosticSeverity::Hint
+        );
     }
 
     #[test]

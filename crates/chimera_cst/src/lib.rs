@@ -7,8 +7,8 @@
 #[cfg(test)]
 use chimera_allocator as _;
 
-use chimera_source::{SourceFileId, SourceSpan};
 use chimera_lexer::{Token, TokenKind, TokenValue};
+use chimera_source::{SourceFileId, SourceSpan};
 
 /// A node in the lossless Concrete Syntax Tree.
 #[derive(Debug, Clone, PartialEq)]
@@ -262,7 +262,10 @@ fn token_value_to_string(value: &TokenValue) -> Option<String> {
         TokenValue::Float(f) => Some(f.to_string()),
         TokenValue::Atom(s) => Some(format!(":{}", s)),
         TokenValue::String(s) => Some(format!("\"{}\"", s)),
-        TokenValue::CharList(cs) => Some(format!("'{}'", String::from_utf8_lossy(&cs.iter().map(|&c| c as u8).collect::<Vec<_>>()))),
+        TokenValue::CharList(cs) => Some(format!(
+            "'{}'",
+            String::from_utf8_lossy(&cs.iter().map(|&c| c as u8).collect::<Vec<_>>())
+        )),
         TokenValue::Identifier(s) => Some(s.clone()),
         TokenValue::SigilName(s) => Some(s.clone()),
         TokenValue::BlockIdentifier(s) => Some(s.clone()),
@@ -467,15 +470,21 @@ impl CSTBuilder {
     /// Build a CST tree from a source string with full trivia preservation.
     pub fn build(&self, source: &str) -> CSTNode {
         let mut lexer = chimera_lexer::Lexer::new(source, self.file_id);
-        let mut root = CSTNode::new(CSTKind::SourceFile, SourceSpan::new(
-            chimera_source::SourceOffset::new(0),
-            chimera_source::SourceOffset::new(source.len() as u32),
-        ));
+        let mut root = CSTNode::new(
+            CSTKind::SourceFile,
+            SourceSpan::new(
+                chimera_source::SourceOffset::new(0),
+                chimera_source::SourceOffset::new(source.len() as u32),
+            ),
+        );
 
-        let mut current_expr = CSTNode::new(CSTKind::Expression, SourceSpan::new(
-            chimera_source::SourceOffset::new(0),
-            chimera_source::SourceOffset::new(0),
-        ));
+        let mut current_expr = CSTNode::new(
+            CSTKind::Expression,
+            SourceSpan::new(
+                chimera_source::SourceOffset::new(0),
+                chimera_source::SourceOffset::new(0),
+            ),
+        );
         let mut expr_start = chimera_source::SourceOffset::new(0);
         let mut pending_trivia: Vec<Trivia> = Vec::new();
         let mut last_token_end = chimera_source::SourceOffset::new(0);
@@ -537,7 +546,14 @@ impl CSTBuilder {
         }
 
         if !current_expr.children.is_empty() {
-            current_expr.span = SourceSpan::new(expr_start, current_expr.children.last().map(|c| c.span.end).unwrap_or(expr_start));
+            current_expr.span = SourceSpan::new(
+                expr_start,
+                current_expr
+                    .children
+                    .last()
+                    .map(|c| c.span.end)
+                    .unwrap_or(expr_start),
+            );
             root.add_child(current_expr);
         }
 
@@ -554,15 +570,21 @@ impl CSTBuilder {
 
     /// Build a CST tree from tokens with trivia preservation.
     pub fn build_from_tokens(&self, tokens: Vec<Token>, source: &str) -> CSTNode {
-        let mut root = CSTNode::new(CSTKind::SourceFile, SourceSpan::new(
-            chimera_source::SourceOffset::new(0),
-            chimera_source::SourceOffset::new(source.len() as u32),
-        ));
+        let mut root = CSTNode::new(
+            CSTKind::SourceFile,
+            SourceSpan::new(
+                chimera_source::SourceOffset::new(0),
+                chimera_source::SourceOffset::new(source.len() as u32),
+            ),
+        );
 
-        let mut current_expr = CSTNode::new(CSTKind::Expression, SourceSpan::new(
-            chimera_source::SourceOffset::new(0),
-            chimera_source::SourceOffset::new(0),
-        ));
+        let mut current_expr = CSTNode::new(
+            CSTKind::Expression,
+            SourceSpan::new(
+                chimera_source::SourceOffset::new(0),
+                chimera_source::SourceOffset::new(0),
+            ),
+        );
         let mut expr_start = chimera_source::SourceOffset::new(0);
         let mut pending_trivia: Vec<Trivia> = Vec::new();
         let mut last_token_end = chimera_source::SourceOffset::new(0);
@@ -619,7 +641,14 @@ impl CSTBuilder {
         }
 
         if !current_expr.children.is_empty() {
-            current_expr.span = SourceSpan::new(expr_start, current_expr.children.last().map(|c| c.span.end).unwrap_or(expr_start));
+            current_expr.span = SourceSpan::new(
+                expr_start,
+                current_expr
+                    .children
+                    .last()
+                    .map(|c| c.span.end)
+                    .unwrap_or(expr_start),
+            );
             root.add_child(current_expr);
         }
 
@@ -645,7 +674,10 @@ pub fn is_expression(kind: &CSTKind) -> bool {
 
 /// Check if a node is trivia.
 pub fn is_trivia(kind: &CSTKind) -> bool {
-    matches!(kind, CSTKind::Whitespace | CSTKind::Comment | CSTKind::Newline)
+    matches!(
+        kind,
+        CSTKind::Whitespace | CSTKind::Comment | CSTKind::Newline
+    )
 }
 
 /// Get the text content of a node as it appears in source.
@@ -669,7 +701,10 @@ mod tests {
 
     #[test]
     fn test_cst_node_new() {
-        let span = SourceSpan::new(chimera_source::SourceOffset::new(0), chimera_source::SourceOffset::new(5));
+        let span = SourceSpan::new(
+            chimera_source::SourceOffset::new(0),
+            chimera_source::SourceOffset::new(5),
+        );
         let node = CSTNode::new(CSTKind::Identifier, span);
         assert_eq!(node.kind, CSTKind::Identifier);
         assert!(node.token.is_none());
@@ -677,7 +712,10 @@ mod tests {
 
     #[test]
     fn test_cst_node_with_value() {
-        let span = SourceSpan::new(chimera_source::SourceOffset::new(0), chimera_source::SourceOffset::new(3));
+        let span = SourceSpan::new(
+            chimera_source::SourceOffset::new(0),
+            chimera_source::SourceOffset::new(3),
+        );
         let node = CSTNode::with_value(CSTKind::Integer, span, "42");
         assert_eq!(node.value, Some("42".to_string()));
     }
@@ -691,7 +729,10 @@ mod tests {
 
     #[test]
     fn test_cst_node_from_token() {
-        let span = SourceSpan::new(chimera_source::SourceOffset::new(0), chimera_source::SourceOffset::new(3));
+        let span = SourceSpan::new(
+            chimera_source::SourceOffset::new(0),
+            chimera_source::SourceOffset::new(3),
+        );
         let token = Token {
             kind: TokenKind::Identifier,
             span,
@@ -704,7 +745,10 @@ mod tests {
 
     #[test]
     fn test_trivia_newline() {
-        let span = SourceSpan::new(chimera_source::SourceOffset::new(0), chimera_source::SourceOffset::new(1));
+        let span = SourceSpan::new(
+            chimera_source::SourceOffset::new(0),
+            chimera_source::SourceOffset::new(1),
+        );
         let trivia = Trivia::newline(span);
         assert_eq!(trivia.kind, TriviaKind::Newline);
         assert_eq!(trivia.text, "\n");
@@ -712,7 +756,10 @@ mod tests {
 
     #[test]
     fn test_trivia_comment() {
-        let span = SourceSpan::new(chimera_source::SourceOffset::new(0), chimera_source::SourceOffset::new(5));
+        let span = SourceSpan::new(
+            chimera_source::SourceOffset::new(0),
+            chimera_source::SourceOffset::new(5),
+        );
         let trivia = Trivia::comment(span, "# comment");
         assert_eq!(trivia.kind, TriviaKind::Comment);
     }
@@ -732,7 +779,10 @@ mod tests {
 
     #[test]
     fn test_node_text() {
-        let span = SourceSpan::new(chimera_source::SourceOffset::new(0), chimera_source::SourceOffset::new(2));
+        let span = SourceSpan::new(
+            chimera_source::SourceOffset::new(0),
+            chimera_source::SourceOffset::new(2),
+        );
         let node = CSTNode::with_value(CSTKind::Integer, span, "42");
         let text = node_text(&node, "42");
         assert_eq!(text, "42");
@@ -754,7 +804,10 @@ mod tests {
 
         // Second token should have leading whitespace trivia
         assert!(!expr.children[1].leading_trivia.is_empty());
-        assert_eq!(expr.children[1].leading_trivia[0].kind, TriviaKind::Whitespace);
+        assert_eq!(
+            expr.children[1].leading_trivia[0].kind,
+            TriviaKind::Whitespace
+        );
     }
 
     #[test]
@@ -793,17 +846,26 @@ mod tests {
 
     #[test]
     fn test_cst_node_child_apis() {
-        let span = SourceSpan::new(chimera_source::SourceOffset::new(0), chimera_source::SourceOffset::new(10));
+        let span = SourceSpan::new(
+            chimera_source::SourceOffset::new(0),
+            chimera_source::SourceOffset::new(10),
+        );
         let mut parent = CSTNode::new(CSTKind::Expression, span);
 
-        let child1 = CSTNode::new(CSTKind::Identifier, SourceSpan::new(
-            chimera_source::SourceOffset::new(0),
-            chimera_source::SourceOffset::new(3),
-        ));
-        let child2 = CSTNode::new(CSTKind::Integer, SourceSpan::new(
-            chimera_source::SourceOffset::new(4),
-            chimera_source::SourceOffset::new(7),
-        ));
+        let child1 = CSTNode::new(
+            CSTKind::Identifier,
+            SourceSpan::new(
+                chimera_source::SourceOffset::new(0),
+                chimera_source::SourceOffset::new(3),
+            ),
+        );
+        let child2 = CSTNode::new(
+            CSTKind::Integer,
+            SourceSpan::new(
+                chimera_source::SourceOffset::new(4),
+                chimera_source::SourceOffset::new(7),
+            ),
+        );
 
         parent.add_child(child1);
         parent.add_child(child2);

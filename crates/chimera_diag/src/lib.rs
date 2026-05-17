@@ -6,7 +6,7 @@
 #[cfg(test)]
 use chimera_allocator as _;
 
-use chimera_source::{SourceFileId, SourceSpan, SourceLocation};
+use chimera_source::{SourceFileId, SourceLocation, SourceSpan};
 
 /// Diagnostic severity levels.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
@@ -145,7 +145,11 @@ impl Diagnostic {
     }
 
     /// Add a label to this diagnostic.
-    pub fn with_label(mut self, span: chimera_source::SourceSpan, message: impl Into<String>) -> Self {
+    pub fn with_label(
+        mut self,
+        span: chimera_source::SourceSpan,
+        message: impl Into<String>,
+    ) -> Self {
         self.labels.push(Label {
             span,
             message: message.into(),
@@ -155,7 +159,11 @@ impl Diagnostic {
     }
 
     /// Add a secondary label to this diagnostic.
-    pub fn with_secondary_label(mut self, span: chimera_source::SourceSpan, message: impl Into<String>) -> Self {
+    pub fn with_secondary_label(
+        mut self,
+        span: chimera_source::SourceSpan,
+        message: impl Into<String>,
+    ) -> Self {
         self.labels.push(Label {
             span,
             message: message.into(),
@@ -242,7 +250,11 @@ pub trait Renderer {
 
     /// Render multiple diagnostics.
     fn render(&self, diags: &[Diagnostic], mode: RenderMode) -> String {
-        diags.iter().map(|d| self.render_diagnostic(d, mode)).collect::<Vec<_>>().join("\n")
+        diags
+            .iter()
+            .map(|d| self.render_diagnostic(d, mode))
+            .collect::<Vec<_>>()
+            .join("\n")
     }
 }
 
@@ -285,7 +297,11 @@ impl DefaultRenderer {
     }
 
     fn reset_color(&self) -> &'static str {
-        if self.colorize { "\x1b[0m" } else { "" }
+        if self.colorize {
+            "\x1b[0m"
+        } else {
+            ""
+        }
     }
 }
 
@@ -302,9 +318,11 @@ impl Renderer for DefaultRenderer {
 impl DefaultRenderer {
     fn render_json(&self, diag: &Diagnostic) -> String {
         // Simple JSON-like output without serde dependency
-        let labels_json: Vec<String> = diag.labels.iter().map(|l| {
-            format!("{{\"message\": \"{}\"}}", l.message)
-        }).collect();
+        let labels_json: Vec<String> = diag
+            .labels
+            .iter()
+            .map(|l| format!("{{\"message\": \"{}\"}}", l.message))
+            .collect();
         format!(
             r#"{{"severity": "{:?}", "message": "{}", "labels": [{}]}}"#,
             diag.severity,
@@ -321,15 +339,32 @@ impl DefaultRenderer {
         let prefix = self.severity_prefix(diag.severity);
 
         if let Some(ref code) = diag.code {
-            output.push_str(&format!("{}{}{}{}: {}{}{}\n",
-                color, prefix, reset,
-                if diag.severity == Severity::Error { "" } else { " " },
-                code.code, reset,
-                if diag.labels.is_empty() { "" } else { " -- " }));
+            output.push_str(&format!(
+                "{}{}{}{}: {}{}{}\n",
+                color,
+                prefix,
+                reset,
+                if diag.severity == Severity::Error {
+                    ""
+                } else {
+                    " "
+                },
+                code.code,
+                reset,
+                if diag.labels.is_empty() { "" } else { " -- " }
+            ));
         } else {
-            output.push_str(&format!("{}{}{}{}:\n",
-                color, prefix, reset,
-                if diag.severity == Severity::Error { "" } else { " " }));
+            output.push_str(&format!(
+                "{}{}{}{}:\n",
+                color,
+                prefix,
+                reset,
+                if diag.severity == Severity::Error {
+                    ""
+                } else {
+                    " "
+                }
+            ));
         }
 
         output.push_str(&format!("{}{}\n", color, diag.message));
@@ -337,8 +372,13 @@ impl DefaultRenderer {
         for label in &diag.labels {
             if let Some(file) = self.source_map.get_file(SourceFileId::new(0)) {
                 let (line, col) = file.offset_to_line_col(label.span.start);
-                output.push_str(&format!("  {}:{}:{}: {}\n",
-                    file.path, line.0 + 1, col.0, label.message));
+                output.push_str(&format!(
+                    "  {}:{}:{}: {}\n",
+                    file.path,
+                    line.0 + 1,
+                    col.0,
+                    label.message
+                ));
             }
         }
 
@@ -356,7 +396,11 @@ impl DefaultRenderer {
                 output.push_str(&format!("    -> {}\n", replacement));
             }
             if let Some(ref span) = suggestion.span {
-                output.push_str(&format!("    at {}:{}\n", span.start.as_usize(), span.end.as_usize()));
+                output.push_str(&format!(
+                    "    at {}:{}\n",
+                    span.start.as_usize(),
+                    span.end.as_usize()
+                ));
             }
         }
 
@@ -379,11 +423,24 @@ impl DefaultRenderer {
                 };
 
                 if line == end_line {
-                    output.push_str(&format!("{}:{}:{}: {}{}\n",
-                        file.path, line.0 + 1, col.0, prefix, diag.message));
-                    output.push_str(&format!("  {}: {}: {}\n",
-                        if label.style == LabelStyle::Primary { "error" } else { "note" },
-                        label.message, diag.message));
+                    output.push_str(&format!(
+                        "{}:{}:{}: {}{}\n",
+                        file.path,
+                        line.0 + 1,
+                        col.0,
+                        prefix,
+                        diag.message
+                    ));
+                    output.push_str(&format!(
+                        "  {}: {}: {}\n",
+                        if label.style == LabelStyle::Primary {
+                            "error"
+                        } else {
+                            "note"
+                        },
+                        label.message,
+                        diag.message
+                    ));
                 }
             }
         }
@@ -475,8 +532,16 @@ impl DiagnosticSet {
     /// Sort diagnostics by file and location.
     pub fn sort(&mut self) {
         self.diags.sort_by(|a, b| {
-            let a_start = a.labels.first().map(|l| l.span.start).unwrap_or_else(|| chimera_source::SourceOffset::new(0));
-            let b_start = b.labels.first().map(|l| l.span.start).unwrap_or_else(|| chimera_source::SourceOffset::new(0));
+            let a_start = a
+                .labels
+                .first()
+                .map(|l| l.span.start)
+                .unwrap_or_else(|| chimera_source::SourceOffset::new(0));
+            let b_start = b
+                .labels
+                .first()
+                .map(|l| l.span.start)
+                .unwrap_or_else(|| chimera_source::SourceOffset::new(0));
             a_start.cmp(&b_start)
         });
     }
@@ -488,14 +553,16 @@ impl DiagnosticSet {
 
     /// Get all suggestions from diagnostics that have them.
     pub fn suggestions(&self) -> Vec<&Suggestion> {
-        self.diags.iter()
+        self.diags
+            .iter()
             .flat_map(|d| d.suggestions.iter())
             .collect()
     }
 
     /// Get suggestions grouped by diagnostic.
     pub fn suggestions_by_diagnostic(&self) -> Vec<(usize, &Suggestion)> {
-        self.diags.iter()
+        self.diags
+            .iter()
             .enumerate()
             .flat_map(|(i, d)| d.suggestions.iter().map(move |s| (i, s)))
             .collect()
@@ -505,7 +572,7 @@ impl DiagnosticSet {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chimera_source::{SourceMap, SourceSpan, SourceOffset};
+    use chimera_source::{SourceMap, SourceOffset, SourceSpan};
 
     #[test]
     fn test_diagnostic_error() {
@@ -522,32 +589,31 @@ mod tests {
 
     #[test]
     fn test_diagnostic_with_label() {
-        let diag = Diagnostic::error("test")
-            .with_label(SourceSpan::new(SourceOffset::new(0), SourceOffset::new(5)), "label message");
+        let diag = Diagnostic::error("test").with_label(
+            SourceSpan::new(SourceOffset::new(0), SourceOffset::new(5)),
+            "label message",
+        );
         assert_eq!(diag.labels.len(), 1);
     }
 
     #[test]
     fn test_diagnostic_with_note() {
-        let diag = Diagnostic::error("test")
-            .with_note("additional info");
+        let diag = Diagnostic::error("test").with_note("additional info");
         assert_eq!(diag.notes.len(), 1);
     }
 
     #[test]
     fn test_diagnostic_with_hint() {
-        let diag = Diagnostic::error("test")
-            .with_hint("try this");
+        let diag = Diagnostic::error("test").with_hint("try this");
         assert_eq!(diag.hints.len(), 1);
     }
 
     #[test]
     fn test_diagnostic_with_code() {
-        let diag = Diagnostic::error("test")
-            .with_code(DiagnosticCode {
-                code: "E001".to_string(),
-                explanation: "test error".to_string(),
-            });
+        let diag = Diagnostic::error("test").with_code(DiagnosticCode {
+            code: "E001".to_string(),
+            explanation: "test error".to_string(),
+        });
         assert!(diag.code.is_some());
     }
 
@@ -611,29 +677,26 @@ mod tests {
             chimera_source::SourceOffset::new(0),
             chimera_source::SourceOffset::new(10),
         );
-        let suggestion = Suggestion::new("Replace with correct syntax")
-            .with_span(span.clone());
+        let suggestion = Suggestion::new("Replace with correct syntax").with_span(span.clone());
         assert!(suggestion.span.is_some());
     }
 
     #[test]
     fn test_suggestion_with_replacement() {
-        let suggestion = Suggestion::new("Fix typo")
-            .with_replacement("correct");
+        let suggestion = Suggestion::new("Fix typo").with_replacement("correct");
         assert_eq!(suggestion.replacement.as_deref(), Some("correct"));
     }
 
     #[test]
     fn test_suggestion_insert_position() {
-        let suggestion = Suggestion::new("Add import")
-            .with_insert_at_end("import MyModule;");
+        let suggestion = Suggestion::new("Add import").with_insert_at_end("import MyModule;");
         match suggestion.insert_position {
             Some(InsertPosition::End(text)) => assert_eq!(text, "import MyModule;"),
             _ => panic!("Expected InsertPosition::End"),
         }
 
-        let suggestion2 = Suggestion::new("Add import at start")
-            .with_insert_at_start("import MyModule;");
+        let suggestion2 =
+            Suggestion::new("Add import at start").with_insert_at_start("import MyModule;");
         match suggestion2.insert_position {
             Some(InsertPosition::Start(text)) => assert_eq!(text, "import MyModule;"),
             _ => panic!("Expected InsertPosition::Start"),
@@ -657,11 +720,12 @@ mod tests {
     #[test]
     fn test_diagnostic_set_suggestions() {
         let mut set = DiagnosticSet::new();
-        set.add(Diagnostic::error("error 1")
-            .with_suggestion(Suggestion::new("fix 1")));
-        set.add(Diagnostic::error("error 2")
-            .with_suggestion(Suggestion::new("fix 2"))
-            .with_suggestion(Suggestion::new("fix 3")));
+        set.add(Diagnostic::error("error 1").with_suggestion(Suggestion::new("fix 1")));
+        set.add(
+            Diagnostic::error("error 2")
+                .with_suggestion(Suggestion::new("fix 2"))
+                .with_suggestion(Suggestion::new("fix 3")),
+        );
 
         let suggestions = set.suggestions();
         assert_eq!(suggestions.len(), 3);
@@ -670,10 +734,8 @@ mod tests {
     #[test]
     fn test_diagnostic_set_suggestions_by_diagnostic() {
         let mut set = DiagnosticSet::new();
-        set.add(Diagnostic::error("error 1")
-            .with_suggestion(Suggestion::new("fix 1")));
-        set.add(Diagnostic::error("error 2")
-            .with_suggestion(Suggestion::new("fix 2")));
+        set.add(Diagnostic::error("error 1").with_suggestion(Suggestion::new("fix 1")));
+        set.add(Diagnostic::error("error 2").with_suggestion(Suggestion::new("fix 2")));
 
         let grouped = set.suggestions_by_diagnostic();
         assert_eq!(grouped.len(), 2);

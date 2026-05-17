@@ -1,7 +1,7 @@
 #! Lexer for the Rust/Zig Elixir compiler.
- //!
- //! Tokenizes Elixir source files into a stream of tokens with source spans.
- //! Tokens include identifiers, atoms, numbers, strings, operators, keywords, and punctuation.
+//!
+//! Tokenizes Elixir source files into a stream of tokens with source spans.
+//! Tokens include identifiers, atoms, numbers, strings, operators, keywords, and punctuation.
 //!
 //! ## Examples
 //!
@@ -53,11 +53,11 @@
 //! let file_id = SourceFileId::new(0);
 //! let mut lexer = Lexer::new(source, file_id);
 //! let mut tokens = Vec::new();
-//! 
+//!
 //! while let Some(token) = lexer.next() {
 //!     tokens.push(token);
 //! }
-//! 
+//!
 //! // Should produce tokens for: IO, ., puts, (, "Hello, world!", ).
 //! assert_eq!(tokens[0].kind, TokenKind::Identifier); // IO
 //! assert_eq!(tokens[1].kind, TokenKind::Dot);        // .
@@ -88,11 +88,11 @@
 //! let file_id = SourceFileId::new(0);
 //! let mut lexer = Lexer::new(source, file_id);
 //! let mut tokens = Vec::new();
-//! 
+//!
 //! while let Some(token) = lexer.next() {
 //!     tokens.push(token);
 //! }
-//! 
+//!
 //! // Check that the span for "foo" is correct
 //! let foo_token = &tokens[0];
 //! assert_eq!(foo_token.span().start().line(), 1);
@@ -104,7 +104,7 @@
 #[cfg(test)]
 use chimera_allocator as _;
 
-use chimera_source::{SourceFileId, SourceSpan, SourceOffset};
+use chimera_source::{SourceFileId, SourceOffset, SourceSpan};
 
 /// Token kinds representing all Elixir lexical elements.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -129,7 +129,7 @@ pub enum TokenKind {
     InterpolatedSigilEnd,
     InterpolatedHeredocStart,
     InterpolatedHeredocEnd,
-    ExpressionSegment,  // #{ ... } expression boundary
+    ExpressionSegment, // #{ ... } expression boundary
 
     // Punctuation
     OpenParen,
@@ -479,13 +479,14 @@ impl<'a> Lexer<'a> {
         self.push_token_front(self.make_token(span, TokenKind::InterpolatedStringStart));
     }
 
-    fn make_token_with_value(&self, mut span: SourceSpan, kind: TokenKind, value: TokenValue) -> Token {
+    fn make_token_with_value(
+        &self,
+        mut span: SourceSpan,
+        kind: TokenKind,
+        value: TokenValue,
+    ) -> Token {
         self.set_span_end(&mut span);
-        Token {
-            kind,
-            span,
-            value,
-        }
+        Token { kind, span, value }
     }
 
     fn unput(&mut self, ch: char) {
@@ -539,7 +540,11 @@ impl<'a> Lexer<'a> {
             }
         }
         let span = start;
-        Ok(self.make_token_with_value(span, TokenKind::AliasIdentifier, TokenValue::Identifier(ident)))
+        Ok(self.make_token_with_value(
+            span,
+            TokenKind::AliasIdentifier,
+            TokenValue::Identifier(ident),
+        ))
     }
 
     fn classify_keyword(&self, ident: &str) -> TokenKind {
@@ -663,7 +668,10 @@ impl<'a> Lexer<'a> {
                     if brace_depth == 0 {
                         interpolating = false;
                         if !buffer.is_empty() {
-                            segments.push((buffer.clone(), SourceSpan::new(segment_start, self.current_offset())));
+                            segments.push((
+                                buffer.clone(),
+                                SourceSpan::new(segment_start, self.current_offset()),
+                            ));
                             buffer.clear();
                         }
                         continue;
@@ -677,7 +685,10 @@ impl<'a> Lexer<'a> {
             } else if ch == '#' && self.peek() == Some('{') {
                 self.advance();
                 if !buffer.is_empty() {
-                    segments.push((buffer.clone(), SourceSpan::new(segment_start, self.current_offset())));
+                    segments.push((
+                        buffer.clone(),
+                        SourceSpan::new(segment_start, self.current_offset()),
+                    ));
                     buffer.clear();
                 }
                 interpolating = true;
@@ -714,7 +725,10 @@ impl<'a> Lexer<'a> {
 
         // Add remaining content as segment if we saw closing quote
         if !buffer.is_empty() && saw_closing_quote {
-            segments.push((buffer, SourceSpan::new(segment_start, self.current_offset())));
+            segments.push((
+                buffer,
+                SourceSpan::new(segment_start, self.current_offset()),
+            ));
         }
 
         // If no segments, return empty string
@@ -809,8 +823,14 @@ impl<'a> Lexer<'a> {
         let span = start;
         if has_dot || has_exp {
             match value.parse::<f64>() {
-                Ok(f) => Ok(self.make_token_with_value(span, TokenKind::Float, TokenValue::Float(f))),
-                Err(_) => Ok(self.make_token_with_value(span, TokenKind::Error, TokenValue::Error("invalid float".into()))),
+                Ok(f) => {
+                    Ok(self.make_token_with_value(span, TokenKind::Float, TokenValue::Float(f)))
+                }
+                Err(_) => Ok(self.make_token_with_value(
+                    span,
+                    TokenKind::Error,
+                    TokenValue::Error("invalid float".into()),
+                )),
             }
         } else {
             let val: u64 = value.replace('_', "").parse().unwrap_or(0);
@@ -893,7 +913,13 @@ impl<'a> Lexer<'a> {
             }
 
             let span = start;
-            Ok(self.make_token_with_value(span, TokenKind::SigilStart, TokenValue::String(content)))
+            Ok(
+                self.make_token_with_value(
+                    span,
+                    TokenKind::SigilStart,
+                    TokenValue::String(content),
+                ),
+            )
         } else {
             Err(LexError::UnterminatedSigil(self.current_offset(), '"'))
         }
@@ -1046,9 +1072,7 @@ impl<'a> Lexer<'a> {
                 self.advance();
                 Ok(self.make_token(span, TokenKind::DoubleColon))
             }
-            Some(ch) if ch.is_alphabetic() => {
-                self.lex_atom_underscore(start)
-            }
+            Some(ch) if ch.is_alphabetic() => self.lex_atom_underscore(start),
             _ => Ok(self.make_token(span, TokenKind::Colon)),
         }
     }
@@ -1175,45 +1199,83 @@ mod tests {
     #[test]
     fn test_tokenize_identifiers() {
         let kinds = tokenize("foo bar _baz");
-        assert_eq!(kinds, vec![TokenKind::Identifier, TokenKind::Identifier, TokenKind::Identifier, TokenKind::Eof]);
+        assert_eq!(
+            kinds,
+            vec![
+                TokenKind::Identifier,
+                TokenKind::Identifier,
+                TokenKind::Identifier,
+                TokenKind::Eof
+            ]
+        );
     }
 
     #[test]
     fn test_tokenize_keywords() {
         let kinds = tokenize("defmodule do end");
-        assert_eq!(kinds, vec![TokenKind::KeywordDefmodule, TokenKind::KeywordDo, TokenKind::KeywordEnd, TokenKind::Eof]);
+        assert_eq!(
+            kinds,
+            vec![
+                TokenKind::KeywordDefmodule,
+                TokenKind::KeywordDo,
+                TokenKind::KeywordEnd,
+                TokenKind::Eof
+            ]
+        );
     }
 
     #[test]
     fn test_tokenize_integers() {
         let kinds = tokenize("42 123_456");
-        assert_eq!(kinds, vec![TokenKind::Integer, TokenKind::Integer, TokenKind::Eof]);
+        assert_eq!(
+            kinds,
+            vec![TokenKind::Integer, TokenKind::Integer, TokenKind::Eof]
+        );
     }
 
     #[test]
     fn test_tokenize_strings() {
         let kinds = tokenize("\"hello\" \"world\"");
-        assert_eq!(kinds, vec![TokenKind::String, TokenKind::String, TokenKind::Eof]);
+        assert_eq!(
+            kinds,
+            vec![TokenKind::String, TokenKind::String, TokenKind::Eof]
+        );
     }
 
     #[test]
     fn test_tokenize_operators() {
         let kinds = tokenize("+ - * / ++ --");
-        assert_eq!(kinds, vec![
-            TokenKind::Plus, TokenKind::Minus, TokenKind::Star, TokenKind::Slash,
-            TokenKind::PlusPlus, TokenKind::MinusMinus, TokenKind::Eof
-        ]);
+        assert_eq!(
+            kinds,
+            vec![
+                TokenKind::Plus,
+                TokenKind::Minus,
+                TokenKind::Star,
+                TokenKind::Slash,
+                TokenKind::PlusPlus,
+                TokenKind::MinusMinus,
+                TokenKind::Eof
+            ]
+        );
     }
 
     #[test]
     fn test_tokenize_punctuation() {
         let kinds = tokenize("() [] {} , ;");
-        assert_eq!(kinds, vec![
-            TokenKind::OpenParen, TokenKind::CloseParen,
-            TokenKind::OpenBracket, TokenKind::CloseBracket,
-            TokenKind::OpenBrace, TokenKind::CloseBrace,
-            TokenKind::Comma, TokenKind::Semicolon, TokenKind::Eof
-        ]);
+        assert_eq!(
+            kinds,
+            vec![
+                TokenKind::OpenParen,
+                TokenKind::CloseParen,
+                TokenKind::OpenBracket,
+                TokenKind::CloseBracket,
+                TokenKind::OpenBrace,
+                TokenKind::CloseBrace,
+                TokenKind::Comma,
+                TokenKind::Semicolon,
+                TokenKind::Eof
+            ]
+        );
     }
 
     #[test]
@@ -1225,33 +1287,54 @@ mod tests {
     #[test]
     fn test_tokenize_atoms() {
         let kinds = tokenize(":foo :bar");
-        assert_eq!(kinds, vec![TokenKind::Atom, TokenKind::Atom, TokenKind::Eof]);
+        assert_eq!(
+            kinds,
+            vec![TokenKind::Atom, TokenKind::Atom, TokenKind::Eof]
+        );
     }
 
     #[test]
     fn test_tokenize_sigils() {
         let kinds = tokenize("~r\"test\" ~w[hello]");
-        assert_eq!(kinds, vec![TokenKind::SigilStart, TokenKind::SigilStart, TokenKind::Eof]);
+        assert_eq!(
+            kinds,
+            vec![TokenKind::SigilStart, TokenKind::SigilStart, TokenKind::Eof]
+        );
     }
 
     #[test]
     fn test_tokenize_comparison_operators() {
         let kinds = tokenize("== != =~ === !== <= >= < >");
-        assert_eq!(kinds, vec![
-            TokenKind::Equal, TokenKind::NotEqual, TokenKind::TildeGreaterThan,
-            TokenKind::StrictEqual, TokenKind::StrictNotEqual,
-            TokenKind::LessThanOrEqual, TokenKind::GreaterThanOrEqual,
-            TokenKind::LessThan, TokenKind::GreaterThan, TokenKind::Eof
-        ]);
+        assert_eq!(
+            kinds,
+            vec![
+                TokenKind::Equal,
+                TokenKind::NotEqual,
+                TokenKind::TildeGreaterThan,
+                TokenKind::StrictEqual,
+                TokenKind::StrictNotEqual,
+                TokenKind::LessThanOrEqual,
+                TokenKind::GreaterThanOrEqual,
+                TokenKind::LessThan,
+                TokenKind::GreaterThan,
+                TokenKind::Eof
+            ]
+        );
     }
 
     #[test]
     fn test_tokenize_bit_operators() {
         let kinds = tokenize("< > || ^^^");
-        assert_eq!(kinds, vec![
-            TokenKind::LessThan, TokenKind::GreaterThan,
-            TokenKind::OrOr, TokenKind::CaretCaretCaret, TokenKind::Eof
-        ]);
+        assert_eq!(
+            kinds,
+            vec![
+                TokenKind::LessThan,
+                TokenKind::GreaterThan,
+                TokenKind::OrOr,
+                TokenKind::CaretCaretCaret,
+                TokenKind::Eof
+            ]
+        );
     }
 
     #[test]
@@ -1276,22 +1359,38 @@ mod tests {
     #[test]
     fn test_tokenize_keyword_defs() {
         let kinds = tokenize("def defp defmacro defmacrop defmodule");
-        assert_eq!(kinds, vec![
-            TokenKind::KeywordDef, TokenKind::KeywordDefp,
-            TokenKind::KeywordDefmacro, TokenKind::KeywordDefmacrop,
-            TokenKind::KeywordDefmodule, TokenKind::Eof
-        ]);
+        assert_eq!(
+            kinds,
+            vec![
+                TokenKind::KeywordDef,
+                TokenKind::KeywordDefp,
+                TokenKind::KeywordDefmacro,
+                TokenKind::KeywordDefmacrop,
+                TokenKind::KeywordDefmodule,
+                TokenKind::Eof
+            ]
+        );
     }
 
     #[test]
     fn test_tokenize_control_flow() {
         let kinds = tokenize("if unless case cond for receive try rescue catch after");
-        assert_eq!(kinds, vec![
-            TokenKind::KeywordIf, TokenKind::KeywordUnless, TokenKind::KeywordCase,
-            TokenKind::KeywordCond, TokenKind::KeywordFor, TokenKind::KeywordReceive,
-            TokenKind::KeywordTry, TokenKind::KeywordRescue, TokenKind::KeywordCatch,
-            TokenKind::KeywordAfter, TokenKind::Eof
-        ]);
+        assert_eq!(
+            kinds,
+            vec![
+                TokenKind::KeywordIf,
+                TokenKind::KeywordUnless,
+                TokenKind::KeywordCase,
+                TokenKind::KeywordCond,
+                TokenKind::KeywordFor,
+                TokenKind::KeywordReceive,
+                TokenKind::KeywordTry,
+                TokenKind::KeywordRescue,
+                TokenKind::KeywordCatch,
+                TokenKind::KeywordAfter,
+                TokenKind::Eof
+            ]
+        );
     }
 
     #[test]
@@ -1367,7 +1466,9 @@ mod tests {
         // Test fixture: valid_identifiers.txt
         let source = "foo bar _underscore";
         let kinds = tokenize(source);
-        assert!(kinds.iter().all(|k| *k == TokenKind::Identifier || *k == TokenKind::Eof));
+        assert!(kinds
+            .iter()
+            .all(|k| *k == TokenKind::Identifier || *k == TokenKind::Eof));
         assert_eq!(kinds.len(), 4); // 3 identifiers + EOF
     }
 
@@ -1376,7 +1477,9 @@ mod tests {
         // Test fixture: valid_atoms.txt
         let source = ":foo :bar :baz :true :false :nil";
         let kinds = tokenize(source);
-        assert!(kinds.iter().all(|k| *k == TokenKind::Atom || *k == TokenKind::Eof));
+        assert!(kinds
+            .iter()
+            .all(|k| *k == TokenKind::Atom || *k == TokenKind::Eof));
     }
 
     #[test]
@@ -1384,7 +1487,9 @@ mod tests {
         // Test fixture: valid_strings.txt
         let source = "\"hello\" \"world\"";
         let kinds = tokenize(source);
-        assert!(kinds.iter().all(|k| *k == TokenKind::String || *k == TokenKind::Eof));
+        assert!(kinds
+            .iter()
+            .all(|k| *k == TokenKind::String || *k == TokenKind::Eof));
     }
 
     #[test]
@@ -1429,7 +1534,13 @@ mod tests {
     fn test_lexer_fixture_sigil() {
         // Sigils
         let kinds = tokenize("~r/foo/ ~w[bar baz] ~s\"string\"");
-        assert!(kinds.iter().filter(|k| **k == TokenKind::SigilStart).count() >= 3);
+        assert!(
+            kinds
+                .iter()
+                .filter(|k| **k == TokenKind::SigilStart)
+                .count()
+                >= 3
+        );
     }
 
     #[test]
@@ -1438,7 +1549,13 @@ mod tests {
         // \"unterminated gives an unterminated string error
         let kinds = tokenize("\"unterminated");
         // Should have error tokens
-        assert!(kinds.iter().filter(|k| matches!(k, TokenKind::Error)).count() >= 1);
+        assert!(
+            kinds
+                .iter()
+                .filter(|k| matches!(k, TokenKind::Error))
+                .count()
+                >= 1
+        );
     }
 
     // Property-based tests
@@ -1472,10 +1589,16 @@ mod tests {
     #[test]
     fn test_lexer_property_single_char_tokens() {
         // Property: single-character tokens should always produce EOF
-        for c in ['+', '-', '*', '/', '(', ')', '[', ']', '{', '}', ',', ';', ':', '.'] {
+        for c in [
+            '+', '-', '*', '/', '(', ')', '[', ']', '{', '}', ',', ';', ':', '.',
+        ] {
             let source = c.to_string();
             let kinds = tokenize(&source);
-            assert!(kinds.contains(&TokenKind::Eof), "Single char '{}' should produce EOF", c);
+            assert!(
+                kinds.contains(&TokenKind::Eof),
+                "Single char '{}' should produce EOF",
+                c
+            );
         }
     }
 
@@ -1485,7 +1608,11 @@ mod tests {
         let sources = ["foo", "_foo", "foo123", "foo_bar", "_", "_123"];
         for source in sources {
             let kinds = tokenize(source);
-            assert!(kinds.contains(&TokenKind::Identifier), "Identifier '{}' should tokenize", source);
+            assert!(
+                kinds.contains(&TokenKind::Identifier),
+                "Identifier '{}' should tokenize",
+                source
+            );
         }
     }
 
@@ -1496,7 +1623,12 @@ mod tests {
         for source in sources {
             let kinds = tokenize(source);
             if !kinds.is_empty() {
-                assert_eq!(kinds.last(), Some(&TokenKind::Eof), "EOF should be last for '{}'", source);
+                assert_eq!(
+                    kinds.last(),
+                    Some(&TokenKind::Eof),
+                    "EOF should be last for '{}'",
+                    source
+                );
             }
         }
     }
@@ -1513,10 +1645,20 @@ mod tests {
     #[test]
     fn test_lexer_property_string_escapes() {
         // Property: common escape sequences should be valid
-        let sources = ["\"\\ntest\"", "\"\\ttest\"", "\"\\rtest\"", "\"\\\\test\"", "\"\\\"test\""];
+        let sources = [
+            "\"\\ntest\"",
+            "\"\\ttest\"",
+            "\"\\rtest\"",
+            "\"\\\\test\"",
+            "\"\\\"test\"",
+        ];
         for source in sources {
             let kinds = tokenize(source);
-            assert!(kinds.contains(&TokenKind::String), "Escape in '{}' should be valid", source);
+            assert!(
+                kinds.contains(&TokenKind::String),
+                "Escape in '{}' should be valid",
+                source
+            );
         }
     }
 }

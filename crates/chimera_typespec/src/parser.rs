@@ -3,7 +3,7 @@
 //! Parses typespec types and attributes from strings.
 
 use super::*;
-use chimera_lexer::{Lexer, TokenKind, Token};
+use chimera_lexer::{Lexer, Token, TokenKind};
 
 /// Parse a typespec type from a string representation.
 pub fn parse_type(source: &str, file_id: SourceFileId) -> Result<TypespecType, String> {
@@ -13,7 +13,9 @@ pub fn parse_type(source: &str, file_id: SourceFileId) -> Result<TypespecType, S
 
 fn parse_type_from_tokens(lexer: &mut Lexer) -> Result<TypespecType, String> {
     // First consume any opening paren before calling parse_type_token
-    let token = lexer.next_token().map_err(|e| format!("lexer error: {:?}", e))?;
+    let token = lexer
+        .next_token()
+        .map_err(|e| format!("lexer error: {:?}", e))?;
 
     // Check if it's an OpenParen - we might need to handle this specially
     match token.kind {
@@ -42,16 +44,28 @@ fn parse_type_token(token: Token, lexer: &mut Lexer) -> Result<TypespecType, Str
                 let next_tok = lexer.next_token();
                 eprintln!("DEBUG: after alias split, next_tok = {:?}", next_tok);
                 let args = match next_tok {
-                    Ok(Token { kind: TokenKind::OpenParen, .. }) => {
+                    Ok(Token {
+                        kind: TokenKind::OpenParen,
+                        ..
+                    }) => {
                         let _ = consume_token(lexer, TokenKind::CloseParen);
                         Vec::new()
                     }
-                    Ok(Token { kind: TokenKind::LessThan, .. }) => {
+                    Ok(Token {
+                        kind: TokenKind::LessThan,
+                        ..
+                    }) => {
                         let mut args = Vec::new();
                         loop {
                             match lexer.next_token() {
-                                Ok(Token { kind: TokenKind::GreaterThan, .. }) => break,
-                                Ok(Token { kind: TokenKind::Comma, .. }) => continue,
+                                Ok(Token {
+                                    kind: TokenKind::GreaterThan,
+                                    ..
+                                }) => break,
+                                Ok(Token {
+                                    kind: TokenKind::Comma,
+                                    ..
+                                }) => continue,
                                 Ok(token) => {
                                     let ty = parse_type_token(token, lexer)?;
                                     args.push(ty);
@@ -72,9 +86,7 @@ fn parse_type_token(token: Token, lexer: &mut Lexer) -> Result<TypespecType, Str
             }
             parse_type_name(&type_name, lexer)
         }
-        TokenKind::Atom => {
-            Ok(TypespecType::LitAtom(Atom::new(0)))
-        }
+        TokenKind::Atom => Ok(TypespecType::LitAtom(Atom::new(0))),
         TokenKind::Integer => {
             let int_val = match token.value {
                 chimera_lexer::TokenValue::Integer(n) => n as i64,
@@ -90,7 +102,10 @@ fn parse_type_name(name: &str, lexer: &mut Lexer) -> Result<TypespecType, String
     // Check for remote types
     let next_token = lexer.next_token();
     match next_token {
-        Ok(Token { kind: TokenKind::Dot, .. }) => {
+        Ok(Token {
+            kind: TokenKind::Dot,
+            ..
+        }) => {
             let type_name_token = lexer.next_token().map_err(|e| format!("{:?}", e))?;
             let type_name = match type_name_token.value {
                 chimera_lexer::TokenValue::Identifier(n) => n,
@@ -100,12 +115,21 @@ fn parse_type_name(name: &str, lexer: &mut Lexer) -> Result<TypespecType, String
             // Check for generic args or parens
             let next_tok = lexer.next_token();
             let args = match next_tok {
-                Ok(Token { kind: TokenKind::LessThan, .. }) => {
+                Ok(Token {
+                    kind: TokenKind::LessThan,
+                    ..
+                }) => {
                     let mut args = Vec::new();
                     loop {
                         match lexer.next_token() {
-                            Ok(Token { kind: TokenKind::GreaterThan, .. }) => break,
-                            Ok(Token { kind: TokenKind::Comma, .. }) => continue,
+                            Ok(Token {
+                                kind: TokenKind::GreaterThan,
+                                ..
+                            }) => break,
+                            Ok(Token {
+                                kind: TokenKind::Comma,
+                                ..
+                            }) => continue,
                             Ok(token) => {
                                 let ty = parse_type_token(token, lexer)?;
                                 args.push(ty);
@@ -115,7 +139,10 @@ fn parse_type_name(name: &str, lexer: &mut Lexer) -> Result<TypespecType, String
                     }
                     args
                 }
-                Ok(Token { kind: TokenKind::OpenParen, .. }) => {
+                Ok(Token {
+                    kind: TokenKind::OpenParen,
+                    ..
+                }) => {
                     let _ = consume_token(lexer, TokenKind::CloseParen);
                     Vec::new()
                 }
@@ -129,7 +156,10 @@ fn parse_type_name(name: &str, lexer: &mut Lexer) -> Result<TypespecType, String
                 args,
             })
         }
-        Ok(Token { kind: TokenKind::OpenParen, .. }) => {
+        Ok(Token {
+            kind: TokenKind::OpenParen,
+            ..
+        }) => {
             if TypespecType::is_builtin_type(name) {
                 parse_builtin_with_parens(name, lexer)
             } else {
@@ -228,13 +258,22 @@ fn parse_type_args_angled(lexer: &mut Lexer) -> Result<Vec<TypespecType>, String
     // Check if next token is '<'
     let next_token = lexer.next_token();
     match next_token {
-        Ok(Token { kind: TokenKind::LessThan, .. }) => {
+        Ok(Token {
+            kind: TokenKind::LessThan,
+            ..
+        }) => {
             // Parse args until '>'
             let mut args = Vec::new();
             loop {
                 match lexer.next_token() {
-                    Ok(Token { kind: TokenKind::GreaterThan, .. }) => break,
-                    Ok(Token { kind: TokenKind::Comma, .. }) => continue,
+                    Ok(Token {
+                        kind: TokenKind::GreaterThan,
+                        ..
+                    }) => break,
+                    Ok(Token {
+                        kind: TokenKind::Comma,
+                        ..
+                    }) => continue,
                     Ok(token) => {
                         let ty = parse_type_token(token, lexer)?;
                         args.push(ty);
@@ -244,7 +283,10 @@ fn parse_type_args_angled(lexer: &mut Lexer) -> Result<Vec<TypespecType>, String
             }
             Ok(args)
         }
-        Ok(Token { kind: TokenKind::OpenParen, .. }) => {
+        Ok(Token {
+            kind: TokenKind::OpenParen,
+            ..
+        }) => {
             // This is actually the parens for the type, not angle brackets
             // e.g., String.t() - we already consumed the '(' here
             // We should consume ')' and return empty since there are no type args
@@ -263,8 +305,14 @@ fn parse_type_args_paren(lexer: &mut Lexer) -> Result<Vec<TypespecType>, String>
     let mut args = Vec::new();
     loop {
         match lexer.next_token() {
-            Ok(Token { kind: TokenKind::CloseParen, .. }) => break,
-            Ok(Token { kind: TokenKind::Comma, .. }) => continue,
+            Ok(Token {
+                kind: TokenKind::CloseParen,
+                ..
+            }) => break,
+            Ok(Token {
+                kind: TokenKind::Comma,
+                ..
+            }) => continue,
             Ok(token) => {
                 let ty = parse_type_token(token, lexer)?;
                 args.push(ty);
@@ -284,7 +332,9 @@ fn parse_builtin_type(name: &str, lexer: &mut Lexer) -> Result<TypespecType, Str
         "bitstring" => {
             let args = parse_type_args_angled(lexer)?;
             if !args.is_empty() {
-                Ok(TypespecType::Bitstring(Some(Box::new(args.into_iter().next().unwrap()))))
+                Ok(TypespecType::Bitstring(Some(Box::new(
+                    args.into_iter().next().unwrap(),
+                ))))
             } else {
                 Ok(TypespecType::Bitstring(None))
             }
@@ -296,7 +346,10 @@ fn parse_builtin_type(name: &str, lexer: &mut Lexer) -> Result<TypespecType, Str
             // list() uses parentheses, not angle brackets
             let next_token = lexer.next_token();
             match next_token {
-                Ok(Token { kind: TokenKind::OpenParen, .. }) => {
+                Ok(Token {
+                    kind: TokenKind::OpenParen,
+                    ..
+                }) => {
                     let inner = parse_type_from_tokens(lexer)?;
                     consume_token(lexer, TokenKind::CloseParen)?;
                     Ok(TypespecType::List(Box::new(inner)))
@@ -352,7 +405,10 @@ pub fn parse_spec(source: &str, file_id: SourceFileId) -> Result<Typespec, Strin
     Ok(Typespec::Spec {
         name: name_atom,
         arity,
-        params: args.into_iter().map(|t| TypespecArg::Anonymous(Box::new(t))).collect(),
+        params: args
+            .into_iter()
+            .map(|t| TypespecArg::Anonymous(Box::new(t)))
+            .collect(),
         return_type: Box::new(return_type),
         meta: SpecMeta::new(file_id),
     })
@@ -362,8 +418,14 @@ fn parse_type_args(lexer: &mut Lexer) -> Result<Vec<TypespecType>, String> {
     let mut args = Vec::new();
     loop {
         match lexer.next_token() {
-            Ok(Token { kind: TokenKind::CloseParen, .. }) => break,
-            Ok(Token { kind: TokenKind::Comma, .. }) => continue,
+            Ok(Token {
+                kind: TokenKind::CloseParen,
+                ..
+            }) => break,
+            Ok(Token {
+                kind: TokenKind::Comma,
+                ..
+            }) => continue,
             Ok(token) => {
                 // Use parse_type_token directly - it handles the token we already consumed
                 let ty = parse_type_token(token, lexer)?;
@@ -380,9 +442,18 @@ fn parse_type_args_with_colon(lexer: &mut Lexer) -> Result<(Vec<TypespecType>, b
     let mut args = Vec::new();
     loop {
         match lexer.next_token() {
-            Ok(Token { kind: TokenKind::CloseParen, .. }) => break,
-            Ok(Token { kind: TokenKind::Comma, .. }) => continue,
-            Ok(Token { kind: TokenKind::DoubleColon, .. }) => {
+            Ok(Token {
+                kind: TokenKind::CloseParen,
+                ..
+            }) => break,
+            Ok(Token {
+                kind: TokenKind::Comma,
+                ..
+            }) => continue,
+            Ok(Token {
+                kind: TokenKind::DoubleColon,
+                ..
+            }) => {
                 // Return early - don't consume, caller needs to know
                 return Ok((args, true));
             }
@@ -464,7 +535,10 @@ fn parse_callback(source: &str, file_id: SourceFileId) -> Result<Typespec, Strin
     Ok(Typespec::Callback {
         name: name_atom,
         arity,
-        params: args.into_iter().map(|t| TypespecArg::Anonymous(Box::new(t))).collect(),
+        params: args
+            .into_iter()
+            .map(|t| TypespecArg::Anonymous(Box::new(t)))
+            .collect(),
         return_type: Box::new(return_type),
         meta: SpecMeta::new(file_id),
     })
@@ -488,7 +562,10 @@ fn parse_opaque(source: &str, file_id: SourceFileId) -> Result<Typespec, String>
     Ok(Typespec::Opaque {
         name: name_atom,
         type_def: Box::new(type_def),
-        meta: TypeMeta { opaque: true, ..TypeMeta::new(file_id) },
+        meta: TypeMeta {
+            opaque: true,
+            ..TypeMeta::new(file_id)
+        },
     })
 }
 

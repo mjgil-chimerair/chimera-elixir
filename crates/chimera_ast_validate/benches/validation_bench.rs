@@ -1,7 +1,7 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use chimera_ast_validate::{Validator, ValidationError};
-use chimera_ast::{AST, to_term};
+use chimera_ast::{to_term, AST};
+use chimera_ast_validate::{ValidationError, Validator};
 use chimera_term::AtomTable;
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
 /// Create a complex AST for validation benchmarking
 fn create_complex_ast() -> AST {
@@ -31,14 +31,14 @@ fn create_complex_ast() -> AST {
             AST::Call {
                 name: chimera_term::Atom::new(5), // Another function
                 meta: chimera_ast::Meta::default(),
-                args: vec![
-                    AST::Integer(100),
-                    AST::Integer(200),
-                ],
+                args: vec![AST::Integer(100), AST::Integer(200)],
             },
             AST::Map(vec![
                 (AST::Atom(chimera_term::Atom::new(6)), AST::Integer(1)),
-                (AST::Atom(chimera_term::Atom::new(7)), AST::String("value".to_string())),
+                (
+                    AST::Atom(chimera_term::Atom::new(7)),
+                    AST::String("value".to_string()),
+                ),
             ]),
         ],
         meta: chimera_ast::Meta::default(),
@@ -48,7 +48,7 @@ fn create_complex_ast() -> AST {
 fn bench_validation(c: &mut Criterion) {
     let mut group = c.benchmark_group("validation");
     group.sample_size(100);
-    
+
     group.bench_function("validate_ast", |b| {
         let ast = create_complex_ast();
         let validator = Validator::default();
@@ -59,7 +59,7 @@ fn bench_validation(c: &mut Criterion) {
             black_box(result);
         });
     });
-    
+
     group.finish();
 }
 

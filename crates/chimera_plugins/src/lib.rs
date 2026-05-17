@@ -8,9 +8,9 @@
 #[cfg(test)]
 use chimera_allocator as _;
 
+use chimera_ast_transform::{AstKind, FindPattern, TransformPlugin, TransformRule};
+use chimera_lint::{LintFinding, LintLocation, LintRule, Linter, RuleCategory, RuleMetadata};
 use chimera_plugin_api::{PluginMetadata, PluginPhase, Severity};
-use chimera_lint::{LintFinding, LintLocation, LintRule, RuleMetadata, RuleCategory, Linter};
-use chimera_ast_transform::{AstKind, TransformRule, TransformPlugin, FindPattern};
 
 /// Plugin for detecting forbidden Elixir patterns.
 ///
@@ -84,9 +84,10 @@ pub mod forbidden {
                     if trimmed.starts_with("#") && trimmed.len() > 10 {
                         // Check for code-like patterns in comments
                         let comment_content = &trimmed[1..].trim();
-                        if comment_content.contains("def ") ||
-                           comment_content.contains("fn ") ||
-                           comment_content.contains("->") {
+                        if comment_content.contains("def ")
+                            || comment_content.contains("fn ")
+                            || comment_content.contains("->")
+                        {
                             findings.push(LintFinding::new(
                                 "FORBIDDEN_002",
                                 Severity::Info,
@@ -128,7 +129,12 @@ pub mod forbidden {
                                 "FORBIDDEN_003",
                                 Severity::Hint,
                                 "Function exceeds 50 lines",
-                                LintLocation::new(input.source_id, function_start + 1, 0, function_start * 20),
+                                LintLocation::new(
+                                    input.source_id,
+                                    function_start + 1,
+                                    0,
+                                    function_start * 20,
+                                ),
                             ));
                         }
                         if trimmed == "end" {
@@ -200,7 +206,11 @@ pub mod verbose_lint {
             return format!("✅ No lint issues found in {}\n", file_path);
         }
 
-        let mut report = format!("📋 Lint Report for {} ({} issues)\n\n", file_path, findings.len());
+        let mut report = format!(
+            "📋 Lint Report for {} ({} issues)\n\n",
+            file_path,
+            findings.len()
+        );
 
         for finding in findings {
             report.push_str(&format_finding(finding, file_path));
@@ -224,19 +234,27 @@ pub mod verbose_lint {
             ),
             Severity::Warning,
             |_rule, input| {
-                input.source
+                input
+                    .source
                     .bytes()
                     .enumerate()
                     .filter(|(_, b)| *b == b' ' || *b == b'\t')
                     .filter_map(|(offset, _)| {
                         // Find line and column
-                        let line = input.source[..offset].bytes().filter(|&b| b == b'\n').count() + 1;
-                        Some(LintFinding::new(
-                            "VERBOSE_001",
-                            Severity::Warning,
-                            format!("Trailing whitespace at column {}", offset % 80),
-                            LintLocation::new(input.source_id, line, offset % 80, offset),
-                        ).with_hint("Remove trailing whitespace before committing"))
+                        let line = input.source[..offset]
+                            .bytes()
+                            .filter(|&b| b == b'\n')
+                            .count()
+                            + 1;
+                        Some(
+                            LintFinding::new(
+                                "VERBOSE_001",
+                                Severity::Warning,
+                                format!("Trailing whitespace at column {}", offset % 80),
+                                LintLocation::new(input.source_id, line, offset % 80, offset),
+                            )
+                            .with_hint("Remove trailing whitespace before committing"),
+                        )
                     })
                     .collect()
             },
@@ -259,7 +277,8 @@ pub mod dead_code_detector {
             name: "dead-code-detector".to_string(),
             version: "0.1.0".to_string(),
             author: "zelix".to_string(),
-            description: "Detects unused code including functions, variables, and imports".to_string(),
+            description: "Detects unused code including functions, variables, and imports"
+                .to_string(),
             lifecycle_phase: PluginPhase::AfterSemantic,
             api_version: 1,
         }
@@ -364,7 +383,8 @@ mod tests {
             Severity::Warning,
             "Test message",
             LintLocation::new(1, 10, 5, 100),
-        ).with_hint("This is a hint");
+        )
+        .with_hint("This is a hint");
         let formatted = verbose_lint::format_finding(&finding, "test.ex");
         assert!(formatted.contains("TEST_001"));
         assert!(formatted.contains("⚠️ WARNING"));
@@ -411,9 +431,12 @@ mod tests {
 
     #[test]
     fn test_format_report_with_findings() {
-        let findings = vec![
-            LintFinding::new("TEST", Severity::Warning, "Test", LintLocation::new(1, 1, 0, 0))
-        ];
+        let findings = vec![LintFinding::new(
+            "TEST",
+            Severity::Warning,
+            "Test",
+            LintLocation::new(1, 1, 0, 0),
+        )];
         let report = verbose_lint::format_report(&findings, "test.ex");
         assert!(report.contains("Lint Report"));
         assert!(report.contains("1 issues"));

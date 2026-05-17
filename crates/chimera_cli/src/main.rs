@@ -92,24 +92,24 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Compile { input, output, debug, opt_level } => {
-            compile_file(input, output, debug, opt_level)
-        }
-        Commands::Run { input, args } => {
-            run_script(input, args)
-        }
-        Commands::Test { input, include_docs } => {
-            run_tests(input, include_docs)
-        }
-        Commands::Format { input, output, check } => {
-            format_source(input, output, check)
-        }
-        Commands::Check { input } => {
-            check_file(input)
-        }
-        Commands::Xref { input, unreachable } => {
-            cross_ref(input, unreachable)
-        }
+        Commands::Compile {
+            input,
+            output,
+            debug,
+            opt_level,
+        } => compile_file(input, output, debug, opt_level),
+        Commands::Run { input, args } => run_script(input, args),
+        Commands::Test {
+            input,
+            include_docs,
+        } => run_tests(input, include_docs),
+        Commands::Format {
+            input,
+            output,
+            check,
+        } => format_source(input, output, check),
+        Commands::Check { input } => check_file(input),
+        Commands::Xref { input, unreachable } => cross_ref(input, unreachable),
         Commands::Version => {
             println!("rzx {}", env!("CARGO_PKG_VERSION"));
             Ok(())
@@ -117,7 +117,12 @@ fn main() -> Result<()> {
     }
 }
 
-fn compile_file(input: PathBuf, output: Option<PathBuf>, _debug: bool, _opt_level: u8) -> Result<()> {
+fn compile_file(
+    input: PathBuf,
+    output: Option<PathBuf>,
+    _debug: bool,
+    _opt_level: u8,
+) -> Result<()> {
     use chimera_module::ModuleBuilder;
     use chimera_source::{SourceFile, SourceFileId};
     use chimera_term::SharedAtomTable;
@@ -265,8 +270,10 @@ fn run_tests(input: Option<PathBuf>, _include_docs: bool) -> Result<()> {
     }
 
     println!("\n=========================");
-    println!("Test results: {} passed, {} failed, {} skipped",
-             total_passed, total_failed, total_skipped);
+    println!(
+        "Test results: {} passed, {} failed, {} skipped",
+        total_passed, total_failed, total_skipped
+    );
 
     if total_failed > 0 {
         Err(anyhow::anyhow!("{} tests failed", total_failed))
@@ -294,7 +301,9 @@ fn discover_tests(dir: &PathBuf) -> Result<Vec<PathBuf>> {
     Ok(tests)
 }
 
-fn extract_module_name(artifact: &chimera_target::CompiledModuleArtifact) -> Option<chimera_term::ModuleName> {
+fn extract_module_name(
+    artifact: &chimera_target::CompiledModuleArtifact,
+) -> Option<chimera_term::ModuleName> {
     Some(artifact.module.clone())
 }
 

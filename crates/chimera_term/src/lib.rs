@@ -9,8 +9,8 @@
 use chimera_allocator as _;
 
 use num_bigint::BigInt as NumBigInt;
-use std::sync::{Arc, RwLock};
 use std::collections::HashMap;
+use std::sync::{Arc, RwLock};
 
 /// Maximum number of atoms allowed in an atom table (per BEAM limit)
 pub const MAX_ATOM_COUNT: usize = 1_048_576;
@@ -191,10 +191,7 @@ pub enum Term {
         context: VarContext,
     },
     /// Alias (like `Foo.Bar`)
-    Alias {
-        segments: Vec<Atom>,
-        meta: Meta,
-    },
+    Alias { segments: Vec<Atom>, meta: Meta },
     /// Macro call with metadata
     Call {
         name: Atom,
@@ -209,10 +206,7 @@ pub enum Term {
         args: Vec<Term>,
     },
     /// Quoted literal
-    Quote {
-        value: Box<Term>,
-        meta: Meta,
-    },
+    Quote { value: Box<Term>, meta: Meta },
 }
 
 /// Arbitrary precision integer representation using num-bigint.
@@ -464,7 +458,11 @@ impl std::fmt::Display for AtomTableError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             AtomTableError::AtomNameTooLong(len) => {
-                write!(f, "atom name too long: {} bytes (max {})", len, MAX_ATOM_LENGTH)
+                write!(
+                    f,
+                    "atom name too long: {} bytes (max {})",
+                    len, MAX_ATOM_LENGTH
+                )
             }
             AtomTableError::AtomTableFull => {
                 write!(f, "atom table full (max {} atoms)", MAX_ATOM_COUNT)
@@ -601,7 +599,11 @@ fn encode_term_into(term: &Term, atoms: &AtomTable, buf: &mut Vec<u8>) -> Result
             encode_term_into(&Term::SmallInt(na.arity as i64), atoms, buf)?;
             encode_term_into(&Term::SmallInt(0), atoms, buf)?; // 0 = local
         }
-        Term::RemoteFun { module, name, arity } => {
+        Term::RemoteFun {
+            module,
+            name,
+            arity,
+        } => {
             // Encode as tuple: {:remote_fun, module, name, arity}
             buf.push(0x68); // small tuple
             buf.push(4u8); // 4 elements
@@ -610,7 +612,11 @@ fn encode_term_into(term: &Term, atoms: &AtomTable, buf: &mut Vec<u8>) -> Result
             encode_term_into(&Term::SmallInt(*arity as i64), atoms, buf)?;
             encode_term_into(&Term::SmallInt(1), atoms, buf)?; // 1 = remote
         }
-        Term::Var { name, meta, context } => {
+        Term::Var {
+            name,
+            meta,
+            context,
+        } => {
             encode_var(name, meta, context, atoms, buf)?;
         }
         Term::Alias { segments, meta: _ } => {
@@ -629,7 +635,12 @@ fn encode_term_into(term: &Term, atoms: &AtomTable, buf: &mut Vec<u8>) -> Result
                 encode_term_into(arg, atoms, buf)?;
             }
         }
-        Term::RemoteCall { receiver, name, args, .. } => {
+        Term::RemoteCall {
+            receiver,
+            name,
+            args,
+            ..
+        } => {
             buf.push(0x68);
             buf.push((args.len() + 2) as u8);
             encode_term_into(receiver, atoms, buf)?;
@@ -645,13 +656,23 @@ fn encode_term_into(term: &Term, atoms: &AtomTable, buf: &mut Vec<u8>) -> Result
     Ok(())
 }
 
-fn encode_atom_index(atom: &Atom, _atoms: &AtomTable, buf: &mut Vec<u8>) -> Result<(), EncodeError> {
+fn encode_atom_index(
+    atom: &Atom,
+    _atoms: &AtomTable,
+    buf: &mut Vec<u8>,
+) -> Result<(), EncodeError> {
     let index = atom.clone().id().to_be_bytes();
     buf.extend_from_slice(&index);
     Ok(())
 }
 
-fn encode_var(name: &Atom, _meta: &Meta, _context: &VarContext, atoms: &AtomTable, buf: &mut Vec<u8>) -> Result<(), EncodeError> {
+fn encode_var(
+    name: &Atom,
+    _meta: &Meta,
+    _context: &VarContext,
+    atoms: &AtomTable,
+    buf: &mut Vec<u8>,
+) -> Result<(), EncodeError> {
     buf.push(0x63); // variable tag
     if let Some(name_str) = atoms.lookup(name.clone()) {
         let bytes = name_str.as_bytes();
@@ -663,27 +684,35 @@ fn encode_var(name: &Atom, _meta: &Meta, _context: &VarContext, atoms: &AtomTabl
 
 /// Decode an ETF buffer into a term.
 #[allow(clippy::only_used_in_recursion)]
-pub fn decode_term<'a>(buf: &'a [u8], atoms: &mut AtomTable) -> Result<(&'a [u8], Term), DecodeError> {
+pub fn decode_term<'a>(
+    buf: &'a [u8],
+    atoms: &mut AtomTable,
+) -> Result<(&'a [u8], Term), DecodeError> {
     if buf.is_empty() {
         return Err(DecodeError::UnexpectedEof);
     }
     match buf[0] {
         0x6A => Ok((&buf[1..], Term::Nil)), // nil
-        0x61 => { // small integer
+        0x61 => {
+            // small integer
             if buf.len() < 5 {
                 return Err(DecodeError::UnexpectedEof);
             }
             let n = i32::from_be_bytes([buf[1], buf[2], buf[3], buf[4]]) as i64;
             Ok((&buf[5..], Term::SmallInt(n)))
         }
-        0x62 => { // float
+        0x62 => {
+            // float
             if buf.len() < 9 {
                 return Err(DecodeError::UnexpectedEof);
             }
-            let f = f64::from_be_bytes([buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7], buf[8]]);
+            let f = f64::from_be_bytes([
+                buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7], buf[8],
+            ]);
             Ok((&buf[9..], Term::Float(f)))
         }
-        0x64 => { // string
+        0x64 => {
+            // string
             if buf.len() < 5 {
                 return Err(DecodeError::UnexpectedEof);
             }
@@ -691,10 +720,11 @@ pub fn decode_term<'a>(buf: &'a [u8], atoms: &mut AtomTable) -> Result<(&'a [u8]
             if buf.len() < 5 + len {
                 return Err(DecodeError::UnexpectedEof);
             }
-            let s = String::from_utf8_lossy(&buf[5..5+len]).into();
-            Ok((&buf[5+len..], Term::String(s)))
+            let s = String::from_utf8_lossy(&buf[5..5 + len]).into();
+            Ok((&buf[5 + len..], Term::String(s)))
         }
-        0x68 => { // cons (improper list) or small tuple
+        0x68 => {
+            // cons (improper list) or small tuple
             if buf.len() < 2 {
                 return Err(DecodeError::UnexpectedEof);
             }
@@ -722,10 +752,13 @@ pub fn decode_term<'a>(buf: &'a [u8], atoms: &mut AtomTable) -> Result<(&'a [u8]
                             } else {
                                 0
                             };
-                            return Ok((rest, Term::LocalFun(NameArity {
-                                name: name.clone(),
-                                arity,
-                            })));
+                            return Ok((
+                                rest,
+                                Term::LocalFun(NameArity {
+                                    name: name.clone(),
+                                    arity,
+                                }),
+                            ));
                         }
                     }
                 }
@@ -739,18 +772,22 @@ pub fn decode_term<'a>(buf: &'a [u8], atoms: &mut AtomTable) -> Result<(&'a [u8]
                             } else {
                                 0
                             };
-                            return Ok((rest, Term::RemoteFun {
-                                module: ModuleName::new(vec![module.clone()]),
-                                name: name.clone(),
-                                arity,
-                            }));
+                            return Ok((
+                                rest,
+                                Term::RemoteFun {
+                                    module: ModuleName::new(vec![module.clone()]),
+                                    name: name.clone(),
+                                    arity,
+                                },
+                            ));
                         }
                     }
                 }
             }
             Ok((rest, Term::Tuple(items)))
         }
-        0x6F => { // big integer
+        0x6F => {
+            // big integer
             if buf.len() < 2 {
                 return Err(DecodeError::UnexpectedEof);
             }
@@ -760,14 +797,16 @@ pub fn decode_term<'a>(buf: &'a [u8], atoms: &mut AtomTable) -> Result<(&'a [u8]
             let bi = BigInt::from_signed_bytes_be(bytes);
             Ok((rest, Term::BigInt(bi)))
         }
-        0x71 => { // atom
+        0x71 => {
+            // atom
             if buf.len() < 5 {
                 return Err(DecodeError::UnexpectedEof);
             }
             let id = u32::from_be_bytes([buf[1], buf[2], buf[3], buf[4]]);
             Ok((&buf[5..], Term::Atom(Atom(id))))
         }
-        0x6D => { // map
+        0x6D => {
+            // map
             if buf.len() < 2 {
                 return Err(DecodeError::UnexpectedEof);
             }
@@ -786,7 +825,8 @@ pub fn decode_term<'a>(buf: &'a [u8], atoms: &mut AtomTable) -> Result<(&'a [u8]
             }
             Ok((rest, Term::Map(pairs)))
         }
-        0x6C => { // list or binary (context-dependent)
+        0x6C => {
+            // list or binary (context-dependent)
             if buf.len() < 5 {
                 return Err(DecodeError::UnexpectedEof);
             }
@@ -819,8 +859,8 @@ pub fn decode_term<'a>(buf: &'a [u8], atoms: &mut AtomTable) -> Result<(&'a [u8]
                     Ok((&rest[1..], Term::List(items)))
                 } else {
                     // It's actually a binary
-                    let data = buf[5..5+len].to_vec();
-                    let rest = &buf[5+len..];
+                    let data = buf[5..5 + len].to_vec();
+                    let rest = &buf[5 + len..];
                     let bits = if !rest.is_empty() && rest[0] == 0x01 {
                         if rest.len() < 2 {
                             return Err(DecodeError::UnexpectedEof);
@@ -1155,7 +1195,11 @@ mod tests {
     #[test]
     fn test_encode_decode_list() {
         let mut atoms = AtomTable::new();
-        let term = Term::List(vec![Term::SmallInt(1), Term::SmallInt(2), Term::SmallInt(3)]);
+        let term = Term::List(vec![
+            Term::SmallInt(1),
+            Term::SmallInt(2),
+            Term::SmallInt(3),
+        ]);
         let encoded = encode_term(&term, &atoms).unwrap();
         let mut dec_atoms = AtomTable::new();
         let (_, decoded) = decode_term(&encoded, &mut dec_atoms).unwrap();
@@ -1304,7 +1348,10 @@ mod tests {
         assert_eq!(Term::Float(3.14), Term::Float(3.14));
 
         // String equality
-        assert_eq!(Term::String(Arc::from("hello")), Term::String(Arc::from("hello")));
+        assert_eq!(
+            Term::String(Arc::from("hello")),
+            Term::String(Arc::from("hello"))
+        );
 
         // CharList equality
         assert_eq!(
@@ -1324,8 +1371,16 @@ mod tests {
     #[test]
     fn test_term_equality_complex_types() {
         // List equality
-        let t1 = Term::List(vec![Term::SmallInt(1), Term::SmallInt(2), Term::SmallInt(3)]);
-        let t2 = Term::List(vec![Term::SmallInt(1), Term::SmallInt(2), Term::SmallInt(3)]);
+        let t1 = Term::List(vec![
+            Term::SmallInt(1),
+            Term::SmallInt(2),
+            Term::SmallInt(3),
+        ]);
+        let t2 = Term::List(vec![
+            Term::SmallInt(1),
+            Term::SmallInt(2),
+            Term::SmallInt(3),
+        ]);
         assert_eq!(t1, t2);
 
         // Different length lists are not equal
@@ -1508,7 +1563,7 @@ mod tests {
             let mut dec_atoms = AtomTable::new();
             let (_, decoded) = decode_term(&encoded, &mut dec_atoms).unwrap();
             match decoded {
-                Term::String(ref decoded_s) if decoded_s.as_ref() == s => {},
+                Term::String(ref decoded_s) if decoded_s.as_ref() == s => {}
                 _ => panic!("String({:?}) should roundtrip, got {:?}", s, decoded),
             }
         }
@@ -1529,7 +1584,11 @@ mod tests {
     fn test_term_roundtrip_proper_list() {
         // Property: proper list should roundtrip
         let mut atoms = AtomTable::new();
-        let term = Term::List(vec![Term::SmallInt(1), Term::SmallInt(2), Term::SmallInt(3)]);
+        let term = Term::List(vec![
+            Term::SmallInt(1),
+            Term::SmallInt(2),
+            Term::SmallInt(3),
+        ]);
         let encoded = encode_term(&term, &atoms).unwrap();
         let mut dec_atoms = AtomTable::new();
         let (_, decoded) = decode_term(&encoded, &mut dec_atoms).unwrap();

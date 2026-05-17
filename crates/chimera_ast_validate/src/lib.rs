@@ -6,7 +6,7 @@
 #[cfg(test)]
 use chimera_allocator as _;
 
-use chimera_ast::{AST, ExprContext};
+use chimera_ast::{ExprContext, AST};
 use chimera_diag::Diagnostic;
 use chimera_term::Term;
 
@@ -15,13 +15,19 @@ use chimera_term::Term;
 pub enum ValidationError {
     InvalidNodeShape(String),
     InvalidMetadata(String),
-    InvalidArity { expected: u8, actual: u8 },
+    InvalidArity {
+        expected: u8,
+        actual: u8,
+    },
     InvalidAliasSegments(usize),
     InvalidMacroReturn(String),
     InvalidGuard(String),
     InvalidPattern(String),
     ReservedAtom(String),
-    InvalidContext { expected: ExprContext, actual: ExprContext },
+    InvalidContext {
+        expected: ExprContext,
+        actual: ExprContext,
+    },
 }
 
 impl ValidationError {
@@ -114,7 +120,9 @@ impl Validator {
                 Ok(())
             }
 
-            AST::RemoteCall { module, name, args, .. } => {
+            AST::RemoteCall {
+                module, name, args, ..
+            } => {
                 self.validate(module)?;
                 self.validate_call(name, args.len() as u8)?;
                 for arg in args {
@@ -137,7 +145,12 @@ impl Validator {
                 Ok(())
             }
 
-            AST::Clause { pattern, guard, body, .. } => {
+            AST::Clause {
+                pattern,
+                guard,
+                body,
+                ..
+            } => {
                 self.validate_pattern(pattern)?;
                 if let Some(g) = guard {
                     self.validate_guard(g)?;
@@ -169,7 +182,13 @@ impl Validator {
                 Ok(())
             }
 
-            AST::Try { expr, rescue, catch, after, .. } => {
+            AST::Try {
+                expr,
+                rescue,
+                catch,
+                after,
+                ..
+            } => {
                 self.validate(expr)?;
                 for r in rescue {
                     self.validate(r)?;
@@ -287,7 +306,9 @@ impl Validator {
                 Ok(())
             }
 
-            AST::BinaryOp { op, left, right, .. } => {
+            AST::BinaryOp {
+                op, left, right, ..
+            } => {
                 self.validate_binary_op(op)?;
                 self.validate(left)?;
                 self.validate(right)?;
@@ -378,7 +399,13 @@ impl Validator {
         match name.as_ref() {
             AST::Alias { segments, .. } => self.validate_alias(segments),
             AST::Identifier { name, .. } => {
-                if name.is_empty() || !name.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
+                if name.is_empty()
+                    || !name
+                        .chars()
+                        .next()
+                        .map(|c| c.is_uppercase())
+                        .unwrap_or(false)
+                {
                     return Err(ValidationError::InvalidNodeShape(
                         "module name must start with uppercase".to_string(),
                     ));
@@ -403,8 +430,12 @@ impl Validator {
 
     fn validate_pattern(&self, pattern: &AST) -> ValidationResult<()> {
         match pattern {
-            AST::Var { .. } | AST::Integer(_) | AST::Float(_) | AST::String(_)
-            | AST::Atom(_) | AST::Nil => Ok(()),
+            AST::Var { .. }
+            | AST::Integer(_)
+            | AST::Float(_)
+            | AST::String(_)
+            | AST::Atom(_)
+            | AST::Nil => Ok(()),
 
             AST::List(items) => {
                 for item in items {
@@ -443,14 +474,17 @@ impl Validator {
     }
 
     fn validate_binary_op(&self, op: &chimera_term::Atom) -> ValidationResult<()> {
-        let valid_ops = ["+", "-", "*", "/", "==", "!=", "===", "!==", "<", "<=", ">", ">=",
-                        "++", "--", "and", "or", "andalso", "orelse", "<>", "in"];
+        let valid_ops = [
+            "+", "-", "*", "/", "==", "!=", "===", "!==", "<", "<=", ">", ">=", "++", "--", "and",
+            "or", "andalso", "orelse", "<>", "in",
+        ];
         let table = chimera_term::AtomTable::new();
         if let Some(name) = table.lookup(op.clone()) {
             if !valid_ops.contains(&name.as_ref()) {
-                return Err(ValidationError::InvalidNodeShape(
-                    format!("invalid binary operator: {}", name),
-                ));
+                return Err(ValidationError::InvalidNodeShape(format!(
+                    "invalid binary operator: {}",
+                    name
+                )));
             }
         }
         Ok(())
@@ -461,9 +495,10 @@ impl Validator {
         let table = chimera_term::AtomTable::new();
         if let Some(name) = table.lookup(op.clone()) {
             if !valid_ops.contains(&name.as_ref()) {
-                return Err(ValidationError::InvalidNodeShape(
-                    format!("invalid unary operator: {}", name),
-                ));
+                return Err(ValidationError::InvalidNodeShape(format!(
+                    "invalid unary operator: {}",
+                    name
+                )));
             }
         }
         Ok(())
@@ -496,8 +531,14 @@ pub fn validate_macro_return(term: &Term) -> ValidationResult<()> {
     match term {
         Term::Quote { value, .. } => validate_macro_return(value),
         Term::Tuple(_) | Term::List(_) => Ok(()),
-        Term::Atom(_) | Term::SmallInt(_) | Term::Float(_) | Term::String(_)
-        | Term::Nil | Term::Var { .. } | Term::CharList(_) | Term::Binary(_, _) => Ok(()),
+        Term::Atom(_)
+        | Term::SmallInt(_)
+        | Term::Float(_)
+        | Term::String(_)
+        | Term::Nil
+        | Term::Var { .. }
+        | Term::CharList(_)
+        | Term::Binary(_, _) => Ok(()),
         _ => Err(ValidationError::InvalidMacroReturn(
             "invalid term returned from macro".to_string(),
         )),
@@ -508,8 +549,8 @@ pub fn validate_macro_return(term: &Term) -> ValidationResult<()> {
 mod tests {
     use super::*;
     use chimera_ast::Meta;
-    use chimera_term::Atom;
     use chimera_source::SourceFileId;
+    use chimera_term::Atom;
 
     fn make_meta() -> Meta {
         Meta::new(SourceFileId::new(0), 1, 0)
@@ -616,10 +657,7 @@ mod tests {
 
     #[test]
     fn test_validate_macro_return_valid() {
-        let term = Term::Tuple(vec![
-            Term::Atom(Atom::new(1)),
-            Term::List(vec![]),
-        ]);
+        let term = Term::Tuple(vec![Term::Atom(Atom::new(1)), Term::List(vec![])]);
         assert!(validate_macro_return(&term).is_ok());
     }
 

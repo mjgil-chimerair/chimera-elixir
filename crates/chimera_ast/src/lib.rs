@@ -1,7 +1,7 @@
 #! Abstract Syntax Tree for the Rust/Zig Elixir compiler.
- //!
- //! Provides the quoted AST representation that matches Elixir's canonical
- //! metaprogramming format: `{:name, metadata, args}`.
+//!
+//! Provides the quoted AST representation that matches Elixir's canonical
+//! metaprogramming format: `{:name, metadata, args}`.
 //!
 //! ## Examples
 //!
@@ -370,7 +370,12 @@ pub fn to_term(ast: &AST, atoms: &mut chimera_term::AtomTable) -> Term {
         AST::Binary(_, bits) => Term::Binary(vec![], *bits),
         AST::List(items) => Term::List(items.iter().map(|e| to_term(e, atoms)).collect()),
         AST::Tuple(items) => Term::Tuple(items.iter().map(|e| to_term(e, atoms)).collect()),
-        AST::Map(pairs) => Term::Map(pairs.iter().map(|(k, v)| (to_term(k, atoms), to_term(v, atoms))).collect()),
+        AST::Map(pairs) => Term::Map(
+            pairs
+                .iter()
+                .map(|(k, v)| (to_term(k, atoms), to_term(v, atoms)))
+                .collect(),
+        ),
         AST::Var { name, meta } => Term::Var {
             name: name.clone(),
             meta: meta_to_term(&meta, atoms),
@@ -390,7 +395,12 @@ pub fn to_term(ast: &AST, atoms: &mut chimera_term::AtomTable) -> Term {
             meta: meta_to_term(meta, atoms),
             args: args.iter().map(|e| to_term(e, atoms)).collect(),
         },
-        AST::RemoteCall { module, name, meta, args } => Term::RemoteCall {
+        AST::RemoteCall {
+            module,
+            name,
+            meta,
+            args,
+        } => Term::RemoteCall {
             receiver: Box::new(to_term(module, atoms)),
             name: name.clone(),
             meta: meta_to_term(meta, atoms),
@@ -405,7 +415,11 @@ pub fn to_term(ast: &AST, atoms: &mut chimera_term::AtomTable) -> Term {
             value: Box::new(to_term(value, atoms)),
             meta: meta_to_term(meta, atoms),
         },
-        AST::Match { pattern, value, meta } => {
+        AST::Match {
+            pattern,
+            value,
+            meta,
+        } => {
             let _meta_term = meta_to_term(meta, atoms);
             Term::Cons(
                 Box::new(Term::Atom(atoms.intern("="))),
@@ -418,7 +432,12 @@ pub fn to_term(ast: &AST, atoms: &mut chimera_term::AtomTable) -> Term {
                 )),
             )
         }
-        AST::Clause { pattern, guard, body, meta } => {
+        AST::Clause {
+            pattern,
+            guard,
+            body,
+            meta,
+        } => {
             let _meta_term = meta_to_term(meta, atoms);
             Term::Cons(
                 Box::new(to_term(pattern, atoms)),
@@ -431,45 +450,67 @@ pub fn to_term(ast: &AST, atoms: &mut chimera_term::AtomTable) -> Term {
                 )),
             )
         }
-        AST::Case { expr, clauses, meta } => {
+        AST::Case {
+            expr,
+            clauses,
+            meta,
+        } => {
             // Case clauses in quoted form are {:->, meta, [pattern, body]}
-            let clauses_term = Term::List(clauses.iter().map(|clause| {
-                match clause {
-                    AST::Clause { pattern, guard: _, body, meta } => {
-                        Term::Call {
-                            name: atoms.intern("->"),
-                            meta: meta_to_term(meta, atoms),
-                            args: vec![
-                                Term::List(vec![to_term(pattern, atoms), to_term(body, atoms)]),
-                            ],
+            let clauses_term = Term::List(
+                clauses
+                    .iter()
+                    .map(|clause| {
+                        match clause {
+                            AST::Clause {
+                                pattern,
+                                guard: _,
+                                body,
+                                meta,
+                            } => Term::Call {
+                                name: atoms.intern("->"),
+                                meta: meta_to_term(meta, atoms),
+                                args: vec![Term::List(vec![
+                                    to_term(pattern, atoms),
+                                    to_term(body, atoms),
+                                ])],
+                            },
+                            _ => to_term(clause, atoms), // Fallback for non-clause (shouldn't happen)
                         }
-                    }
-                    _ => to_term(clause, atoms), // Fallback for non-clause (shouldn't happen)
-                }
-            }).collect());
+                    })
+                    .collect(),
+            );
             Term::Call {
                 name: atoms.intern("case"),
                 meta: meta_to_term(meta, atoms),
                 args: vec![to_term(expr, atoms), clauses_term],
             }
         }
-        AST::Cond { clauses, meta } => {
-            Term::Call {
-                name: atoms.intern("cond"),
-                meta: meta_to_term(meta, atoms),
-                args: vec![Term::List(clauses.iter().map(|(cond, body)| {
-                    Term::List(vec![to_term(cond, atoms), to_term(body, atoms)])
-                }).collect())],
-            }
-        }
-        AST::Fn { clauses, meta } => {
-            Term::Call {
-                name: atoms.intern("fn"),
-                meta: meta_to_term(meta, atoms),
-                args: vec![Term::List(clauses.iter().map(|c| to_term(c, atoms)).collect())],
-            }
-        }
-        AST::Try { expr, rescue, catch, after, meta } => {
+        AST::Cond { clauses, meta } => Term::Call {
+            name: atoms.intern("cond"),
+            meta: meta_to_term(meta, atoms),
+            args: vec![Term::List(
+                clauses
+                    .iter()
+                    .map(|(cond, body)| {
+                        Term::List(vec![to_term(cond, atoms), to_term(body, atoms)])
+                    })
+                    .collect(),
+            )],
+        },
+        AST::Fn { clauses, meta } => Term::Call {
+            name: atoms.intern("fn"),
+            meta: meta_to_term(meta, atoms),
+            args: vec![Term::List(
+                clauses.iter().map(|c| to_term(c, atoms)).collect(),
+            )],
+        },
+        AST::Try {
+            expr,
+            rescue,
+            catch,
+            after,
+            meta,
+        } => {
             let rescue_term = if rescue.is_empty() {
                 Term::Nil
             } else {
@@ -495,7 +536,11 @@ pub fn to_term(ast: &AST, atoms: &mut chimera_term::AtomTable) -> Term {
                 ],
             }
         }
-        AST::Receive { clauses, after, meta } => {
+        AST::Receive {
+            clauses,
+            after,
+            meta,
+        } => {
             let clauses_term = Term::List(clauses.iter().map(|c| to_term(c, atoms)).collect());
             let after_term = after.as_ref().map_or(Term::Nil, |(pat, body)| {
                 Term::List(vec![to_term(pat, atoms), to_term(body, atoms)])
@@ -510,196 +555,215 @@ pub fn to_term(ast: &AST, atoms: &mut chimera_term::AtomTable) -> Term {
                 },
             }
         }
-        AST::Defmodule { name, body, meta } => {
-            Term::Call {
-                name: atoms.intern("defmodule"),
+        AST::Defmodule { name, body, meta } => Term::Call {
+            name: atoms.intern("defmodule"),
+            meta: meta_to_term(meta, atoms),
+            args: vec![
+                to_term(name, atoms),
+                Term::List(vec![
+                    Term::Atom(atoms.intern("do")),
+                    Term::List(body.iter().map(|b| to_term(b, atoms)).collect()),
+                ]),
+            ],
+        },
+        AST::Def {
+            name,
+            meta,
+            clauses,
+        } => Term::Call {
+            name: atoms.intern("def"),
+            meta: meta_to_term(meta, atoms),
+            args: vec![
+                Term::Atom(name.clone()),
+                Term::List(vec![
+                    Term::Atom(atoms.intern("do")),
+                    Term::List(clauses.iter().map(|c| to_term(c, atoms)).collect()),
+                ]),
+            ],
+        },
+        AST::Defp {
+            name,
+            meta,
+            clauses,
+        } => Term::Call {
+            name: atoms.intern("defp"),
+            meta: meta_to_term(meta, atoms),
+            args: vec![
+                Term::Atom(name.clone()),
+                Term::List(vec![
+                    Term::Atom(atoms.intern("do")),
+                    Term::List(clauses.iter().map(|c| to_term(c, atoms)).collect()),
+                ]),
+            ],
+        },
+        AST::Defmacro {
+            name,
+            meta,
+            clauses,
+        } => Term::Call {
+            name: atoms.intern("defmacro"),
+            meta: meta_to_term(meta, atoms),
+            args: vec![
+                Term::Atom(name.clone()),
+                Term::List(vec![
+                    Term::Atom(atoms.intern("do")),
+                    Term::List(clauses.iter().map(|c| to_term(c, atoms)).collect()),
+                ]),
+            ],
+        },
+        AST::Defmacrop {
+            name,
+            meta,
+            clauses,
+        } => Term::Call {
+            name: atoms.intern("defmacrop"),
+            meta: meta_to_term(meta, atoms),
+            args: vec![
+                Term::Atom(name.clone()),
+                Term::List(vec![
+                    Term::Atom(atoms.intern("do")),
+                    Term::List(clauses.iter().map(|c| to_term(c, atoms)).collect()),
+                ]),
+            ],
+        },
+        AST::Unquote { expr, meta } => Term::Call {
+            name: atoms.intern("unquote"),
+            meta: meta_to_term(meta, atoms),
+            args: vec![to_term(expr, atoms)],
+        },
+        AST::UnquoteSplicing { expr, meta } => Term::Call {
+            name: atoms.intern("unquote_splicing"),
+            meta: meta_to_term(meta, atoms),
+            args: vec![to_term(expr, atoms)],
+        },
+        AST::AliasExpr { arg, meta } => Term::Call {
+            name: atoms.intern("alias"),
+            meta: meta_to_term(meta, atoms),
+            args: vec![to_term(arg, atoms)],
+        },
+        AST::RequireExpr { arg, meta } => Term::Call {
+            name: atoms.intern("require"),
+            meta: meta_to_term(meta, atoms),
+            args: vec![to_term(arg, atoms)],
+        },
+        AST::ImportExpr { arg, meta, opts } => Term::Call {
+            name: atoms.intern("import"),
+            meta: meta_to_term(meta, atoms),
+            args: vec![
+                to_term(arg, atoms),
+                Term::List(opts.iter().map(|o| to_term(o, atoms)).collect()),
+            ],
+        },
+        AST::Block { exprs, meta } => Term::Call {
+            name: atoms.intern("__block__"),
+            meta: meta_to_term(meta, atoms),
+            args: vec![Term::List(
+                exprs.iter().map(|e| to_term(e, atoms)).collect(),
+            )],
+        },
+        AST::Capture { fun, arity, meta } => match arity {
+            Some(a) => Term::Call {
+                name: atoms.intern("&"),
                 meta: meta_to_term(meta, atoms),
-                args: vec![
-                    to_term(name, atoms),
-                    Term::List(vec![Term::Atom(atoms.intern("do")), Term::List(body.iter().map(|b| to_term(b, atoms)).collect())]),
-                ],
-            }
-        }
-        AST::Def { name, meta, clauses } => {
-            Term::Call {
-                name: atoms.intern("def"),
+                args: vec![Term::SmallInt(*a as i64)],
+            },
+            None => Term::Call {
+                name: atoms.intern("&"),
                 meta: meta_to_term(meta, atoms),
-                args: vec![
-                    Term::Atom(name.clone()),
-                    Term::List(vec![Term::Atom(atoms.intern("do")), Term::List(clauses.iter().map(|c| to_term(c, atoms)).collect())]),
-                ],
-            }
-        }
-        AST::Defp { name, meta, clauses } => {
-            Term::Call {
-                name: atoms.intern("defp"),
-                meta: meta_to_term(meta, atoms),
-                args: vec![
-                    Term::Atom(name.clone()),
-                    Term::List(vec![Term::Atom(atoms.intern("do")), Term::List(clauses.iter().map(|c| to_term(c, atoms)).collect())]),
-                ],
-            }
-        }
-        AST::Defmacro { name, meta, clauses } => {
-            Term::Call {
-                name: atoms.intern("defmacro"),
-                meta: meta_to_term(meta, atoms),
-                args: vec![
-                    Term::Atom(name.clone()),
-                    Term::List(vec![Term::Atom(atoms.intern("do")), Term::List(clauses.iter().map(|c| to_term(c, atoms)).collect())]),
-                ],
-            }
-        }
-        AST::Defmacrop { name, meta, clauses } => {
-            Term::Call {
-                name: atoms.intern("defmacrop"),
-                meta: meta_to_term(meta, atoms),
-                args: vec![
-                    Term::Atom(name.clone()),
-                    Term::List(vec![Term::Atom(atoms.intern("do")), Term::List(clauses.iter().map(|c| to_term(c, atoms)).collect())]),
-                ],
-            }
-        }
-        AST::Unquote { expr, meta } => {
-            Term::Call {
-                name: atoms.intern("unquote"),
-                meta: meta_to_term(meta, atoms),
-                args: vec![to_term(expr, atoms)],
-            }
-        }
-        AST::UnquoteSplicing { expr, meta } => {
-            Term::Call {
-                name: atoms.intern("unquote_splicing"),
-                meta: meta_to_term(meta, atoms),
-                args: vec![to_term(expr, atoms)],
-            }
-        }
-        AST::AliasExpr { arg, meta } => {
-            Term::Call {
-                name: atoms.intern("alias"),
-                meta: meta_to_term(meta, atoms),
-                args: vec![to_term(arg, atoms)],
-            }
-        }
-        AST::RequireExpr { arg, meta } => {
-            Term::Call {
-                name: atoms.intern("require"),
-                meta: meta_to_term(meta, atoms),
-                args: vec![to_term(arg, atoms)],
-            }
-        }
-        AST::ImportExpr { arg, meta, opts } => {
-            Term::Call {
-                name: atoms.intern("import"),
-                meta: meta_to_term(meta, atoms),
-                args: vec![
-                    to_term(arg, atoms),
-                    Term::List(opts.iter().map(|o| to_term(o, atoms)).collect()),
-                ],
-            }
-        }
-        AST::Block { exprs, meta } => {
-            Term::Call {
-                name: atoms.intern("__block__"),
-                meta: meta_to_term(meta, atoms),
-                args: vec![Term::List(exprs.iter().map(|e| to_term(e, atoms)).collect())],
-            }
-        }
-        AST::Capture { fun, arity, meta } => {
-            match arity {
-                Some(a) => Term::Call {
-                    name: atoms.intern("&"),
-                    meta: meta_to_term(meta, atoms),
-                    args: vec![Term::SmallInt(*a as i64)],
-                },
-                None => Term::Call {
-                    name: atoms.intern("&"),
-                    meta: meta_to_term(meta, atoms),
-                    args: vec![to_term(fun, atoms)],
-                },
-            }
-        }
-        AST::BinaryOp { op, left, right, meta: _ } => {
-            Term::Cons(
-                Box::new(Term::Atom(op.clone())),
+                args: vec![to_term(fun, atoms)],
+            },
+        },
+        AST::BinaryOp {
+            op,
+            left,
+            right,
+            meta: _,
+        } => Term::Cons(
+            Box::new(Term::Atom(op.clone())),
+            Box::new(Term::Cons(
+                Box::new(to_term(left, atoms)),
                 Box::new(Term::Cons(
-                    Box::new(to_term(left, atoms)),
-                    Box::new(Term::Cons(
-                        Box::new(to_term(right, atoms)),
-                        Box::new(Term::Nil),
-                    )),
-                )),
-            )
-        }
-        AST::UnaryOp { op, arg, meta: _ } => {
-            Term::Cons(
-                Box::new(Term::Atom(op.clone())),
-                Box::new(Term::Cons(
-                    Box::new(to_term(arg, atoms)),
+                    Box::new(to_term(right, atoms)),
                     Box::new(Term::Nil),
                 )),
-            )
-        }
-        AST::Access { record, field, meta } => {
-            Term::Call {
-                name: atoms.intern("access"),
-                meta: meta_to_term(meta, atoms),
-                args: vec![to_term(record, atoms), to_term(field, atoms)],
-            }
-        }
-        AST::With { bindings, body, meta } => {
-            Term::Call {
-                name: atoms.intern("with"),
-                meta: meta_to_term(meta, atoms),
-                args: vec![
-                    Term::List(bindings.iter().map(|(k, v)| {
-                        Term::List(vec![to_term(k, atoms), to_term(v, atoms)])
-                    }).collect()),
-                    Term::Atom(atoms.intern("do")),
-                    to_term(body, atoms),
-                ],
-            }
-        }
-        AST::Attribute { name, value, meta } => {
-            Term::Call {
-                name: name.clone(),
-                meta: meta_to_term(meta, atoms),
-                args: vec![to_term(value, atoms)],
-            }
-        }
-        AST::Defstruct { fields, meta } => {
-            Term::Call {
-                name: atoms.intern("defstruct"),
-                meta: meta_to_term(meta, atoms),
-                args: vec![Term::List(fields.iter().map(|(k, dv)| {
-                    match dv {
+            )),
+        ),
+        AST::UnaryOp { op, arg, meta: _ } => Term::Cons(
+            Box::new(Term::Atom(op.clone())),
+            Box::new(Term::Cons(
+                Box::new(to_term(arg, atoms)),
+                Box::new(Term::Nil),
+            )),
+        ),
+        AST::Access {
+            record,
+            field,
+            meta,
+        } => Term::Call {
+            name: atoms.intern("access"),
+            meta: meta_to_term(meta, atoms),
+            args: vec![to_term(record, atoms), to_term(field, atoms)],
+        },
+        AST::With {
+            bindings,
+            body,
+            meta,
+        } => Term::Call {
+            name: atoms.intern("with"),
+            meta: meta_to_term(meta, atoms),
+            args: vec![
+                Term::List(
+                    bindings
+                        .iter()
+                        .map(|(k, v)| Term::List(vec![to_term(k, atoms), to_term(v, atoms)]))
+                        .collect(),
+                ),
+                Term::Atom(atoms.intern("do")),
+                to_term(body, atoms),
+            ],
+        },
+        AST::Attribute { name, value, meta } => Term::Call {
+            name: name.clone(),
+            meta: meta_to_term(meta, atoms),
+            args: vec![to_term(value, atoms)],
+        },
+        AST::Defstruct { fields, meta } => Term::Call {
+            name: atoms.intern("defstruct"),
+            meta: meta_to_term(meta, atoms),
+            args: vec![Term::List(
+                fields
+                    .iter()
+                    .map(|(k, dv)| match dv {
                         Some(v) => Term::List(vec![Term::Atom(k.clone()), to_term(v, atoms)]),
                         None => Term::Atom(k.clone()),
-                    }
-                }).collect())],
-            }
-        }
-        AST::Defexception { fields, meta } => {
-            Term::Call {
-                name: atoms.intern("defexception"),
-                meta: meta_to_term(meta, atoms),
-                args: vec![Term::List(fields.iter().map(|(k, dv)| {
-                    match dv {
+                    })
+                    .collect(),
+            )],
+        },
+        AST::Defexception { fields, meta } => Term::Call {
+            name: atoms.intern("defexception"),
+            meta: meta_to_term(meta, atoms),
+            args: vec![Term::List(
+                fields
+                    .iter()
+                    .map(|(k, dv)| match dv {
                         Some(v) => Term::List(vec![Term::Atom(k.clone()), to_term(v, atoms)]),
                         None => Term::Atom(k.clone()),
-                    }
-                }).collect())],
-            }
-        }
+                    })
+                    .collect(),
+            )],
+        },
     }
 }
-
 
 fn meta_to_term(meta: &Meta, _atoms: &mut chimera_term::AtomTable) -> chimera_term::Meta {
     chimera_term::Meta {
         line: meta.location.as_ref().map(|l| l.line).unwrap_or(0),
         column: meta.location.as_ref().map(|l| l.column).unwrap_or(0),
-        file: meta.location.as_ref().map(|l| format!("{:?}", l.file).into()),
+        file: meta
+            .location
+            .as_ref()
+            .map(|l| format!("{:?}", l.file).into()),
         context: meta.context.clone().map(|a| format!("{:?}", a).into()),
         hygiene: chimera_term::HygieneContext {
             origin: meta.hygiene.origin.clone(),
@@ -796,20 +860,42 @@ pub fn pretty_print(ast: &AST, indent: usize) -> String {
         AST::Identifier { name, .. } => format!("{}{}", prefix, name),
         AST::Var { name, .. } => format!("{}var({})", prefix, name.clone().id()),
         AST::Call { name, args, .. } => {
-            let args_str = args.iter().map(|a| pretty_print(a, 0)).collect::<Vec<_>>().join(", ");
+            let args_str = args
+                .iter()
+                .map(|a| pretty_print(a, 0))
+                .collect::<Vec<_>>()
+                .join(", ");
             format!("{}({} {})", prefix, name.clone().id(), args_str)
         }
         AST::List(items) => {
-            let items_str = items.iter().map(|a| pretty_print(a, indent + 1)).collect::<Vec<_>>().join("\n");
+            let items_str = items
+                .iter()
+                .map(|a| pretty_print(a, indent + 1))
+                .collect::<Vec<_>>()
+                .join("\n");
             format!("{}[\n{}\n{}]", prefix, items_str, prefix)
         }
         AST::Tuple(items) => {
-            let items_str = items.iter().map(|a| pretty_print(a, 0)).collect::<Vec<_>>().join(", ");
+            let items_str = items
+                .iter()
+                .map(|a| pretty_print(a, 0))
+                .collect::<Vec<_>>()
+                .join(", ");
             format!("{}{{{}}}", prefix, items_str)
         }
         AST::Defmodule { name, body, .. } => {
-            let body_str = body.iter().map(|a| pretty_print(a, indent + 1)).collect::<Vec<_>>().join("\n");
-            format!("{}defmodule {} do\n{}\n{}end", prefix, pretty_print(name, 0), body_str, prefix)
+            let body_str = body
+                .iter()
+                .map(|a| pretty_print(a, indent + 1))
+                .collect::<Vec<_>>()
+                .join("\n");
+            format!(
+                "{}defmodule {} do\n{}\n{}end",
+                prefix,
+                pretty_print(name, 0),
+                body_str,
+                prefix
+            )
         }
         _ => format!("{}<ast>", prefix),
     }
@@ -818,8 +904,8 @@ pub fn pretty_print(ast: &AST, indent: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chimera_source::{SourceFileId, SourceOffset, SourceSpan};
     use chimera_term::AtomTable;
-    use chimera_source::{SourceFileId, SourceSpan, SourceOffset};
 
     #[test]
     fn test_meta_new() {
@@ -975,7 +1061,10 @@ mod tests {
         meta.custom.push((key, value));
         let retrieved = meta.custom.get(0);
         assert!(retrieved.is_some());
-        assert_eq!(retrieved.unwrap().1, Term::Atom(atoms.intern("macro_origin")));
+        assert_eq!(
+            retrieved.unwrap().1,
+            Term::Atom(atoms.intern("macro_origin"))
+        );
     }
 
     #[test]
@@ -1012,7 +1101,14 @@ mod tests {
         let ast = AST::List(vec![AST::Integer(1), AST::Integer(2), AST::Integer(3)]);
         let mut atoms = AtomTable::new();
         let term = to_term(&ast, &mut atoms);
-        assert_eq!(term, Term::List(vec![Term::SmallInt(1), Term::SmallInt(2), Term::SmallInt(3)]));
+        assert_eq!(
+            term,
+            Term::List(vec![
+                Term::SmallInt(1),
+                Term::SmallInt(2),
+                Term::SmallInt(3)
+            ])
+        );
     }
 
     #[test]
@@ -1057,7 +1153,10 @@ mod tests {
 
     #[test]
     fn test_ast_to_term_match() {
-        let pattern = AST::Var { name: Atom::new(1), meta: Meta::default() };
+        let pattern = AST::Var {
+            name: Atom::new(1),
+            meta: Meta::default(),
+        };
         let value = AST::Integer(42);
         let ast = AST::Match {
             pattern: Box::new(pattern),
@@ -1077,7 +1176,7 @@ mod tests {
                     _ => panic!("Expected Atom for match operator"),
                 }
                 match *inner_rest {
-                    Term::Cons(_, _) => {}, // Has more elements
+                    Term::Cons(_, _) => {} // Has more elements
                     _ => panic!("Expected Cons for match body"),
                 }
             }
@@ -1089,7 +1188,10 @@ mod tests {
     fn test_ast_to_term_case() {
         let expr = AST::Integer(42);
         let clause = AST::Clause {
-            pattern: Box::new(AST::Var { name: Atom::new(1), meta: Meta::default() }),
+            pattern: Box::new(AST::Var {
+                name: Atom::new(1),
+                meta: Meta::default(),
+            }),
             guard: None,
             body: Box::new(AST::Integer(100)),
             meta: Meta::default(),
@@ -1116,7 +1218,11 @@ mod tests {
                     Term::List(clauses) => {
                         assert_eq!(clauses.len(), 1);
                         match &clauses[0] {
-                            Term::Call { name: clause_name, args: clause_args, .. } => {
+                            Term::Call {
+                                name: clause_name,
+                                args: clause_args,
+                                ..
+                            } => {
                                 assert_eq!(clause_name.clone().id(), atoms.intern("->").id());
                                 assert_eq!(clause_args.len(), 1);
                             }
@@ -1151,7 +1257,11 @@ mod tests {
 
         // Verify top-level structure: {:case, meta, args}
         match term {
-            Term::Call { name, meta: _, args } => {
+            Term::Call {
+                name,
+                meta: _,
+                args,
+            } => {
                 assert_eq!(name.id(), atoms.intern("case").id());
                 // meta should be a Meta struct with location info
                 assert_eq!(args.len(), 2); // [expr, clauses]
@@ -1241,11 +1351,11 @@ mod tests {
         match term {
             Term::Cons(inner_op, inner_rest) => {
                 match *inner_op {
-                    Term::Atom(_) => {},
+                    Term::Atom(_) => {}
                     _ => panic!("Expected Atom for binary op"),
                 }
                 match *inner_rest {
-                    Term::Cons(_, _) => {}, // Has operands
+                    Term::Cons(_, _) => {} // Has operands
                     _ => panic!("Expected Cons for binary op"),
                 }
             }
@@ -1266,11 +1376,11 @@ mod tests {
         match term {
             Term::Cons(inner_op, inner_rest) => {
                 match *inner_op {
-                    Term::Atom(_) => {},
+                    Term::Atom(_) => {}
                     _ => panic!("Expected Atom for unary op"),
                 }
                 match *inner_rest {
-                    Term::Cons(_, _) => {},
+                    Term::Cons(_, _) => {}
                     _ => panic!("Expected Cons for unary op"),
                 }
             }
@@ -1412,23 +1522,23 @@ mod tests {
 #[cfg(test)]
 mod proptests {
     use super::*;
-    use proptest::prelude::*;
-    use chimera_term::AtomTable;
-    use chimera_source::{SourceFileId};
     use chimera_diag::{Diagnostic, Severity};
+    use chimera_source::SourceFileId;
+    use chimera_term::AtomTable;
+    use proptest::prelude::*;
 
     /// Property test for AST to term conversion - should always succeed
     #[test]
     fn test_ast_to_term_always_succeeds() {
         fn arb_ast() -> BoxedStrategy<AST> {
             // Simple AST generation strategy for testing
-                prop_oneof![
-                    Just(AST::Nil),
-                    any::<i64>().prop_map(AST::Integer),
-                    any::<f64>().prop_map(AST::Float),
-                    ".*".prop_map(|s| AST::String(s)),
-                ]
-                .boxed()
+            prop_oneof![
+                Just(AST::Nil),
+                any::<i64>().prop_map(AST::Integer),
+                any::<f64>().prop_map(AST::Float),
+                ".*".prop_map(|s| AST::String(s)),
+            ]
+            .boxed()
         }
 
         proptest!(|(ast in arb_ast())| {
