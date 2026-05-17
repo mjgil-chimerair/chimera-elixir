@@ -1,6 +1,6 @@
 [package]
 name = "chimera_zig_abi"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "Safe Rust wrappers around Zig kernels for the Rust/Zig Elixir compiler"
 

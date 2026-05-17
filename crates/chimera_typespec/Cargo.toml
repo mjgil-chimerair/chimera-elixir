@@ -1,6 +1,6 @@
 [package]
 name = "chimera_typespec"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "Typespec parsing and preservation for the Rust/Zig Elixir compiler"
 
