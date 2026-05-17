@@ -7,6 +7,10 @@ on:
     types: [opened, synchronize, reopened]
     branches: [main]
 
+permissions:
+  contents: write
+  pull-requests: write
+
 env:
   RUST_BACKTRACE: 1
   CARGO_INCREMENTAL: 0
