@@ -12,6 +12,7 @@ chimera_source = { path = "../chimera_source" }
 
 [dev-dependencies]
 chimera_allocator = { workspace = true }
+criterion = { workspace = true }
 
 [benchmarks]
 validation_bench = { harness = false }
