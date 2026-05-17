@@ -12,7 +12,7 @@ chimera_ast = { path = "../chimera_ast" }
 [dev-dependencies]
 criterion = { workspace = true }
 chimera_allocator = { workspace = true }
-chimera_beam_term = { path = "../../../chimera-beam/crates/chimera_beam_term" }
+chimera_beam_term = { git = "https://github.com/mjgil-chimerair/chimera-beam", package = "chimera_beam_term" }
 
 [benchmarks]
 codegen_bench = { harness = true }
