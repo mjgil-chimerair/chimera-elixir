@@ -597,9 +597,7 @@ impl TypespecValidator {
     }
 
     fn validate_arity(&self, arity: u8) -> Result<(), Diagnostic> {
-        if arity > 255 {
-            return Err(Diagnostic::error("arity too large"));
-        }
+        let _ = arity;
         Ok(())
     }
 
@@ -1177,14 +1175,14 @@ mod tests {
     fn test_spec_meta_new() {
         let meta = SpecMeta::new(SourceFileId::new(0));
         assert_eq!(meta.file_id, SourceFileId::new(0));
-        assert_eq!(meta.guard, false);
+        assert!(!meta.guard);
     }
 
     #[test]
     fn test_type_meta_new() {
         let meta = TypeMeta::new(SourceFileId::new(0));
         assert_eq!(meta.file_id, SourceFileId::new(0));
-        assert_eq!(meta.opaque, false);
+        assert!(!meta.opaque);
     }
 
     #[test]

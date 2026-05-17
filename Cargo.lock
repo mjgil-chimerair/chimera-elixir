@@ -226,11 +226,13 @@ dependencies = [
  "chimera_diag",
  "chimera_source",
  "chimera_term",
+ "criterion",
 ]
 
 [[package]]
 name = "chimera_beam_term"
 version = "0.1.0"
+source = "git+https://github.com/mjgil-chimerair/chimera-beam#6ff80585df56d3b646e02004e6461782b54786a4"
 
 [[package]]
 name = "chimera_build"
@@ -344,6 +346,7 @@ dependencies = [
  "cargo-fuzz",
  "chimera_allocator",
  "chimera_source",
+ "criterion",
 ]
 
 [[package]]
@@ -397,6 +400,7 @@ dependencies = [
  "chimera_lexer",
  "chimera_source",
  "chimera_term",
+ "criterion",
  "libfuzzer-sys",
 ]
 

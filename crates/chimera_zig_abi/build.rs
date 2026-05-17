@@ -10,13 +10,13 @@ use std::path::Path;
 
 fn main() {
     // Only run FFI build when the ffi feature is enabled
-    if !cfg!(feature = "ffi") {
+    if env::var_os("CARGO_FEATURE_FFI").is_none() {
         println!("cargo:rustc-cfg=ffi_disabled");
         return;
     }
 
     let manifest_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
-    let project_root = Path::new(&manifest_dir).parent().unwrap();
+    let project_root = Path::new(&manifest_dir).parent().unwrap().parent().unwrap();
 
     // Check for Zig
     let zig_path = find_zig();
@@ -42,7 +42,8 @@ fn main() {
         Ok(result) => {
             if result.status.success() {
                 println!("cargo:warning=Zig kernels built successfully");
-                // The library should be in zig-cache or similar
+                let lib_dir = kernels_dir.join("zig-out").join("lib");
+                println!("cargo:rustc-link-search=native={}", lib_dir.display());
             } else {
                 println!(
                     "cargo:warning=Zig build failed: {}",
@@ -56,9 +57,6 @@ fn main() {
             println!("cargo:rustc-cfg=ffi_no_zig");
         }
     }
-
-    // Tell cargo to link against the static library if available
-    println!("cargo:rustc-link-search=native={}", kernels_dir.display());
 }
 
 fn find_zig() -> Option<String> {

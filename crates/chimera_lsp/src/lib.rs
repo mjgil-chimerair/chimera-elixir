@@ -909,9 +909,7 @@ mod tests {
         // Using just "def" without proper structure
         server.did_open("test.ex".to_string(), "def".to_string());
         let diags = server.diagnostics("test.ex");
-        // This should produce some diagnostics
-        // (exact number depends on parser behavior)
-        assert!(diags.len() >= 0); // At least it shouldn't crash
+        assert!(diags.iter().all(|diag| !diag.message.is_empty()));
     }
 
     #[test]

@@ -1090,7 +1090,7 @@ mod tests {
     #[test]
     fn test_literal_table_add_float() {
         let mut table = LiteralTable::new();
-        let idx = table.add_float(3.14159);
+        let idx = table.add_float(std::f64::consts::PI);
         assert_eq!(idx, 0);
         assert_eq!(table.len(), 1);
     }
@@ -1154,7 +1154,7 @@ mod tests {
 
     #[test]
     fn test_literal_entry_float_encode() {
-        let entry = LiteralEntry::Float(2.71828);
+        let entry = LiteralEntry::Float(std::f64::consts::E);
         let encoded = entry.encode();
         assert!(!encoded.is_empty());
         assert_eq!(encoded[0], 0x02); // float tag
@@ -1199,7 +1199,7 @@ mod tests {
         let config = CodegenConfig::default();
         let mut codegen = Codegen::new(config, atoms);
         // Generate a float expression
-        let _ = codegen.generate_expr(&CoreExpr::Float(3.14));
+        let _ = codegen.generate_expr(&CoreExpr::Float(std::f64::consts::PI));
         // Literal table should have one entry
         assert_eq!(codegen.literals().len(), 1);
     }

@@ -37,7 +37,7 @@ fuzz_target!(|data: &[u8]| {
     test_terms.push(Term::String("hello world".into()));
 
     // Test float
-    test_terms.push(Term::Float(3.14));
+    test_terms.push(Term::Float(std::f64::consts::PI));
 
     // Test bigint
     test_terms.push(Term::BigInt(chimera_term::BigInt(

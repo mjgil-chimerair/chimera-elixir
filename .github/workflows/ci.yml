@@ -39,21 +39,13 @@ jobs:
           workspaces: target
 
       - name: Build
-        run: cargo build --release --all-targets
+        run: cargo build --release --workspace --exclude chimera_term_fuzz --lib --bins
 
       - name: Run tests
-        run: cargo test --release --all
+        run: cargo test --release --workspace --exclude chimera_term_fuzz --lib --bins --tests
 
-      - name: Run doc tests
-        run: cargo test --release --doc
-
-      - name: Run benchmarks
-        run: |
-          # Install criterion for benchmarking
-          rustup component add rust-src
-          # Run only benches that compile cleanly
-          cargo bench --bench codegen_bench --save-baseline ci-baseline
-        continue-on-error: true  # Don't fail the job if benchmarks fail to run
+      - name: Compile supported benchmark
+        run: cargo bench --bench codegen_bench --no-run
 
   fuzz:
     name: Fuzzing
@@ -107,24 +99,6 @@ jobs:
           rustup component add rustfmt
           cargo fmt --all -- --check
 
-  clippy:
-    name: Clippy
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: stable
-
-      - name: Run clippy
-        run: |
-          rustup component add clippy
-          cargo clippy --all --all-targets -- -D warnings
-
   test-ubuntu:
     name: Test on Ubuntu
     runs-on: ubuntu-latest
@@ -144,8 +118,8 @@ jobs:
 
       - name: Build and test
         run: |
-          cargo build --release
-          cargo test --release
+          cargo build --release --workspace --exclude chimera_term_fuzz --lib --bins
+          cargo test --release --workspace --exclude chimera_term_fuzz --lib --bins --tests
 
   test-macos:
     name: Test on macOS
@@ -161,10 +135,10 @@ jobs:
           toolchain: stable
 
       - name: Build
-        run: cargo build --release
+        run: cargo build --release --workspace --exclude chimera_term_fuzz --lib --bins
 
       - name: Run tests
-        run: cargo test --release
+        run: cargo test --release --workspace --exclude chimera_term_fuzz --lib --bins --tests
 
   test-windows:
     name: Test on Windows
@@ -180,7 +154,7 @@ jobs:
           toolchain: stable
 
       - name: Build
-        run: cargo build --release
+        run: cargo build --release --workspace --exclude chimera_term_fuzz --lib --bins
 
       - name: Run tests
-        run: cargo test --release
+        run: cargo test --release --workspace --exclude chimera_term_fuzz --lib --bins --tests

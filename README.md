@@ -99,6 +99,36 @@ cargo run --release --bin rzx -- format example.ex
 cargo run --release --bin rzx -- check example.ex
 ```
 
+## ChimeraIR Binary Builds
+
+The three ChimeraIR binary variants currently live in the BEAM integration repo,
+not in this repo. The manifests are:
+
+- `chimera-beam/Chimera.toml` for the ABI binary
+- `chimera-beam/Chimera.adapter.toml` for the Chimera adapter binary
+- `chimera-beam/Chimera.separate.toml` for the Chimera semantic binary
+
+Build the shared `chimera` CLI from `chimerair` first:
+
+```bash
+cd ../chimerair/tools
+cargo build --release -p chimera-cli
+```
+
+Then build the three binaries from `chimera-beam`:
+
+```bash
+HOST_TRIPLE=x86_64-unknown-linux-gnu
+CHIMERA=../chimerair/tools/target/release/chimera
+
+cd ../chimera-beam
+"$CHIMERA" build --manifest Chimera.toml --target "$HOST_TRIPLE" --output ./build-abi
+"$CHIMERA" build --manifest Chimera.adapter.toml --target "$HOST_TRIPLE" --output ./build-adapter
+"$CHIMERA" build --manifest Chimera.separate.toml --target "$HOST_TRIPLE" --output ./build-semantic
+```
+
+Each build currently emits its executable as `build-*/chimera_binary`.
+
 ## Plugin System
 
 The compiler supports plugins via the `rzx_plugin_api` crate:

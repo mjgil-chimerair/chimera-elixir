@@ -568,47 +568,25 @@ impl<'a> Parser<'a> {
         let mut args: Vec<AST> = Vec::new();
         let mut is_call = false;
 
-        loop {
-            match self.peek_token() {
-                Ok(t) => {
-                    // Check for open parenthesis (function call)
-                    if t.kind == TokenKind::OpenParen {
-                        self.next_token()
-                            .map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
-                        args = self.parse_call_args()?;
-                        is_call = true;
-                        break;
-                    }
-                    // Check for dot (remote call or access)
-                    else if t.kind == TokenKind::Dot {
-                        self.next_token()
-                            .map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
-                        // Parse the rest after the dot
-                        let next_tok = self
-                            .next_token()
-                            .map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
-                        if let TokenValue::Identifier(_next_ident) = next_tok.value {
-                            // This is a remote call like Module.function
-                            // For now just return the identifier, full remote call parsing would follow
-                            break;
-                        } else {
-                            return Err(ParseError::UnexpectedToken(next_tok.kind, next_tok.span));
-                        }
-                    }
-                    // Check for pipe (|>)
-                    else if t.kind == TokenKind::PipeGreaterThan {
-                        break; // Will be handled by binary operator precedence
-                    }
-                    // Check for else keyword (in if/case/cond bodies)
-                    else if t.kind == TokenKind::KeywordElse {
-                        break;
-                    }
-                    // Check for keyword args or do block
-                    else {
-                        break;
-                    }
+        if let Ok(t) = self.peek_token() {
+            // Check for open parenthesis (function call)
+            if t.kind == TokenKind::OpenParen {
+                self.next_token()
+                    .map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
+                args = self.parse_call_args()?;
+                is_call = true;
+            }
+            // Check for dot (remote call or access)
+            else if t.kind == TokenKind::Dot {
+                self.next_token()
+                    .map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
+                // Parse the rest after the dot
+                let next_tok = self
+                    .next_token()
+                    .map_err(|_| ParseError::InvalidExpression(self.make_span()))?;
+                if !matches!(next_tok.value, TokenValue::Identifier(_)) {
+                    return Err(ParseError::UnexpectedToken(next_tok.kind, next_tok.span));
                 }
-                Err(_) => break,
             }
         }
 
