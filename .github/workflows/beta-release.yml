@@ -35,8 +35,8 @@ jobs:
       - name: Calculate beta version
         id: version_calc
         run: |
-          # Get current version from Cargo.toml
-          CURRENT_VERSION=$(grep -m1 '^version =' Cargo.toml | cut -d'"' -f2)
+          VERSION_FILE=crates/chimera_cli/Cargo.toml
+          CURRENT_VERSION=$(grep -m1 '^version =' "$VERSION_FILE" | cut -d'"' -f2)
           echo "Current version: $CURRENT_VERSION"
           
           # Parse version components
@@ -49,8 +49,8 @@ jobs:
           
           BETA_VERSION="${MAJOR}.${MINOR}.$((PATCH + 1))-beta.${NEXT_BETA}"
           
-          # Update Cargo.toml with beta version (temporarily for build)
-          cargo set-version $BETA_VERSION
+          # Update every workspace package to keep versions aligned.
+          cargo set-version "$BETA_VERSION" --workspace
           
           echo "version=$BETA_VERSION" >> $GITHUB_OUTPUT
           echo "tag=v$BETA_VERSION" >> $GITHUB_OUTPUT
@@ -82,7 +82,7 @@ jobs:
         run: echo "VERSION=${{ needs.beta-version.outputs.version }}" >> $GITHUB_OUTPUT
 
       - name: Build release
-        run: cargo build --release --workspace --lib --bins
+        run: cargo build --release --workspace --exclude chimera_term_fuzz --lib --bins
 
       - name: Run tests
         run: cargo test --release --workspace --exclude chimera_term_fuzz --lib --bins --tests
@@ -139,13 +139,12 @@ jobs:
 
       - name: Revert version changes
         run: |
-          # Get original version from Cargo.toml (before our changes)
-          ORIGINAL_VERSION=$(git show HEAD:Cargo.toml | grep -m1 '^version =' | cut -d'"' -f2)
+          ORIGINAL_VERSION=$(git show HEAD:crates/chimera_cli/Cargo.toml | grep -m1 '^version =' | cut -d'"' -f2)
           echo "Reverting to original version: $ORIGINAL_VERSION"
-          cargo set-version $ORIGINAL_VERSION
+          cargo set-version "$ORIGINAL_VERSION" --workspace
           
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add Cargo.toml
+          git add Cargo.toml crates/*/Cargo.toml
           git commit -m "chore(release): revert version bump for PR ${{ github.event.number }}"
           git push

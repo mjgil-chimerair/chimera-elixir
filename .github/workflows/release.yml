@@ -33,8 +33,8 @@ jobs:
       - name: Bump version
         id: version_bump
         run: |
-          # Get current version from Cargo.toml
-          CURRENT_VERSION=$(grep -m1 '^version =' Cargo.toml | cut -d'"' -f2)
+          VERSION_FILE=crates/chimera_cli/Cargo.toml
+          CURRENT_VERSION=$(grep -m1 '^version =' "$VERSION_FILE" | cut -d'"' -f2)
           echo "Current version: $CURRENT_VERSION"
           
           # Parse version components
@@ -46,9 +46,9 @@ jobs:
           NEW_PATCH=$((PATCH + 1))
           NEW_VERSION="$MAJOR.$MINOR.$NEW_PATCH"
           
-          # Update Cargo.toml
-          cargo set-version $NEW_VERSION
-          
+          # Update every workspace package to keep versions aligned.
+          cargo set-version "$NEW_VERSION" --workspace
+
           # Also update version in any other places if needed
           # For example, in README or docs
           
@@ -60,8 +60,8 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add Cargo.toml
-          git commit -m "chore(release): bump version to $NEW_VERSION"
+          git add Cargo.toml crates/*/Cargo.toml
+          git commit -m "chore(release): bump version to ${{ steps.version_bump.outputs.version }}"
           git push
 
   release:
@@ -99,7 +99,7 @@ jobs:
           echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Build release
-        run: cargo build --release --workspace --lib --bins
+        run: cargo build --release --workspace --exclude chimera_term_fuzz --lib --bins
 
       - name: Run tests
         run: cargo test --release --workspace --exclude chimera_term_fuzz --lib --bins --tests

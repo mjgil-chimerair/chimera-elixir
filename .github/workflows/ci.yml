@@ -39,7 +39,7 @@ jobs:
           workspaces: target
 
       - name: Build
-        run: cargo build --release --workspace --lib --bins
+        run: cargo build --release --workspace --exclude chimera_term_fuzz --lib --bins
 
       - name: Run tests
         run: cargo test --release --workspace --exclude chimera_term_fuzz --lib --bins --tests
@@ -118,7 +118,7 @@ jobs:
 
       - name: Build and test
         run: |
-          cargo build --release --workspace --lib --bins
+          cargo build --release --workspace --exclude chimera_term_fuzz --lib --bins
           cargo test --release --workspace --exclude chimera_term_fuzz --lib --bins --tests
 
   test-macos:
@@ -135,7 +135,7 @@ jobs:
           toolchain: stable
 
       - name: Build
-        run: cargo build --release --workspace --lib --bins
+        run: cargo build --release --workspace --exclude chimera_term_fuzz --lib --bins
 
       - name: Run tests
         run: cargo test --release --workspace --exclude chimera_term_fuzz --lib --bins --tests
@@ -154,7 +154,7 @@ jobs:
           toolchain: stable
 
       - name: Build
-        run: cargo build --release --workspace --lib --bins
+        run: cargo build --release --workspace --exclude chimera_term_fuzz --lib --bins
 
       - name: Run tests
         run: cargo test --release --workspace --exclude chimera_term_fuzz --lib --bins --tests
