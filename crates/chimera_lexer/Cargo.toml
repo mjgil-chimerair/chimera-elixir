@@ -9,6 +9,7 @@ chimera_source = { path = "../chimera_source" }
 [dev-dependencies]
 cargo-fuzz = "0.13.1"
 chimera_allocator = { workspace = true }
+criterion = { workspace = true }
 
 [benchmarks]
 lex_bench = { harness = false }

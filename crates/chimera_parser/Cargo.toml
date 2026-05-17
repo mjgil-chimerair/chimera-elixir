@@ -11,6 +11,7 @@ chimera_lexer = { path = "../chimera_lexer" }
 
 [dev-dependencies]
 chimera_allocator = { workspace = true }
+criterion = { workspace = true }
 
 [benchmarks]
 parse_bench = { harness = false }
