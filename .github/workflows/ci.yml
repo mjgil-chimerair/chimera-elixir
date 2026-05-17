@@ -31,7 +31,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          version: ${{ matrix.rust }}
+          toolchain: ${{ matrix.rust }}
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
@@ -68,7 +68,7 @@ jobs:
       - name: Install Rust Nightly
         uses: dtolnay/rust-toolchain@stable
         with:
-          version: nightly
+          toolchain: nightly
           components: rust-src
 
       - name: Install cargo-fuzz
@@ -100,7 +100,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          version: stable
+          toolchain: stable
 
       - name: Check formatting
         run: |
@@ -118,7 +118,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          version: stable
+          toolchain: stable
 
       - name: Run clippy
         run: |
@@ -140,7 +140,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          version: stable
+          toolchain: stable
 
       - name: Build and test
         run: |
@@ -158,7 +158,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          version: stable
+          toolchain: stable
 
       - name: Build
         run: cargo build --release
@@ -177,7 +177,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          version: stable
+          toolchain: stable
 
       - name: Build
         run: cargo build --release
