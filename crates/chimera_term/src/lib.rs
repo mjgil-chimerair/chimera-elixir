@@ -1021,7 +1021,7 @@ mod tests {
     #[test]
     fn test_encode_decode_float() {
         let mut atoms = AtomTable::new();
-        let term = Term::Float(3.14);
+        let term = Term::Float(std::f64::consts::PI);
         let encoded = encode_term(&term, &atoms).unwrap();
         let mut dec_atoms = AtomTable::new();
         let (_, decoded) = decode_term(&encoded, &mut dec_atoms).unwrap();
@@ -1151,7 +1151,7 @@ mod tests {
     fn test_float_ieee_754() {
         let mut atoms = AtomTable::new();
         // Test IEEE 754 double precision
-        let val = 3.141592653589793;
+        let val = std::f64::consts::PI;
         let term = Term::Float(val);
         let encoded = encode_term(&term, &atoms).unwrap();
         let mut dec_atoms = AtomTable::new();
@@ -1345,7 +1345,10 @@ mod tests {
         assert_eq!(Term::Nil, Term::Nil);
 
         // Float equality
-        assert_eq!(Term::Float(3.14), Term::Float(3.14));
+        assert_eq!(
+            Term::Float(std::f64::consts::PI),
+            Term::Float(std::f64::consts::PI)
+        );
 
         // String equality
         assert_eq!(
@@ -1520,7 +1523,15 @@ mod tests {
     fn test_term_roundtrip_float() {
         // Property: floats should roundtrip
         let mut atoms = AtomTable::new();
-        let test_values = [0.0, 1.0, -1.0, 3.14159, f64::MAX, f64::MIN, f64::EPSILON];
+        let test_values = [
+            0.0,
+            1.0,
+            -1.0,
+            std::f64::consts::PI,
+            f64::MAX,
+            f64::MIN,
+            f64::EPSILON,
+        ];
         for val in test_values {
             let term = Term::Float(val);
             let encoded = encode_term(&term, &atoms).unwrap();

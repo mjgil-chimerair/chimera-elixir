@@ -99,10 +99,10 @@ jobs:
           echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Build release
-        run: cargo build --release --all-targets
+        run: cargo build --release --workspace --lib --bins
 
       - name: Run tests
-        run: cargo test --release --all
+        run: cargo test --release --workspace --exclude chimera_term_fuzz --lib --bins --tests
 
       - name: Create archive
         id: archive

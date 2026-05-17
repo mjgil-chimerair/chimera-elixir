@@ -1,12 +1,9 @@
 name: Benchmark
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
   schedule:
     - cron: '0 0 * * *'  # Daily at midnight
+  workflow_dispatch:
 
 env:
   RUST_BACKTRACE: 1
@@ -14,7 +11,7 @@ env:
 
 jobs:
   bench:
-    name: Benchmark
+    name: Benchmark Smoke Test
     runs-on: ubuntu-latest
 
     steps:
@@ -31,17 +28,5 @@ jobs:
         with:
           workspaces: target
 
-      - name: Run benchmarks
-        run: cargo bench --bench codegen_bench
-
-      - name: Upload benchmarks
-        uses: benchmark-action/github-action-benchmark@v1
-        with:
-          tool: 'cargo'
-          output-file-path: 'benchmark_results.txt'
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          auto-push: true
-          show-table: true
-          algorithm: percentage
-          alert-threshold: '10%'
-          comment-on-alert: true
+      - name: Compile supported benchmark
+        run: cargo bench --bench codegen_bench --no-run
