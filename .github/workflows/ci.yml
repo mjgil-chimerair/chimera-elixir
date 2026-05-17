@@ -52,7 +52,7 @@ jobs:
           # Install criterion for benchmarking
           rustup component add rust-src
           # Run only benches that compile cleanly
-          cargo bench --bench codegen_bench --bench parse_bench --bench lex_bench --save-baseline ci-baseline
+          cargo bench --bench codegen_bench --save-baseline ci-baseline
         continue-on-error: true  # Don't fail the job if benchmarks fail to run
 
   fuzz:

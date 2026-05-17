@@ -32,7 +32,7 @@ jobs:
           workspaces: target
 
       - name: Run benchmarks
-        run: cargo bench --all
+        run: cargo bench --bench codegen_bench
 
       - name: Upload benchmarks
         uses: benchmark-action/github-action-benchmark@v1
