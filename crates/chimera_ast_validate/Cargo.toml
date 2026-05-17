@@ -1,6 +1,6 @@
 [package]
 name = "chimera_ast_validate"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 description = "AST validation for the Rust/Zig Elixir compiler"
 

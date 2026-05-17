@@ -1,10 +1,10 @@
 [package]
 name = "chimera_ast"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 
 [dependencies]
-chimera_diag = { version = "0.1.1", path = "../chimera_diag" }
+chimera_diag = { version = "0.1.2", path = "../chimera_diag" }
 chimera_source = { path = "../chimera_source" }
 chimera_term = { path = "../chimera_term" }
 

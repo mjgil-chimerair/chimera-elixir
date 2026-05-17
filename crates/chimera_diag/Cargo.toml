@@ -1,6 +1,6 @@
 [package]
 name = "chimera_diag"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 description = "Diagnostic types and rendering for the Rust/Zig Elixir compiler"
 
